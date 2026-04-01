@@ -20,7 +20,15 @@ end
 if encoding_status then
     encoding.default = 'CP1251'
 end
-local u8 = encoding_status and encoding.UTF8 or function(str) return str end
+local u8 = encoding_status and encoding.UTF8 or setmetatable({
+    decode = function(_, str)
+        return str
+    end
+}, {
+    __call = function(_, str)
+        return str
+    end
+})
 
 local configDir = getWorkingDirectory() .. '/config/'
 local filePath = configDir .. 'main.json'
