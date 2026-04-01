@@ -1,6 +1,6 @@
 script_name("LMMR")
 script_author("major")
-script_version("1.8.2")
+script_version("1.8.3")
 
 local imgui_status, imgui = pcall(require, 'mimgui')
 local encoding_status, encoding = pcall(require, 'encoding')
@@ -12,7 +12,7 @@ local json = pcall(require, "json") and require("json") or {
 }
 
 if not imgui_status then
-    print("Ошибка: mimgui не установлен!")
+    print("ГЋГёГЁГЎГЄГ : mimgui Г­ГҐ ГіГ±ГІГ Г­Г®ГўГ«ГҐГ­!")
     return
 end
 
@@ -31,7 +31,7 @@ if not doesDirectoryExist(configDir) then
 end
 
 -- ============================================================================
--- УТИЛИТЫ
+-- Г“Г’Г€Г‹Г€Г’Г›
 -- ============================================================================
 
 local function ru_lower(str)
@@ -61,7 +61,7 @@ local function safe_copy(dest, src, max_len)
 end
 
 -- ============================================================================
--- СОСТОЯНИЕ И ПЕРЕМЕННЫЕ
+-- Г‘ГЋГ‘Г’ГЋГџГЌГ€Г… Г€ ГЏГ…ГђГ…ГЊГ…ГЌГЌГ›Г…
 -- ============================================================================
 
 local STATE = {
@@ -137,6 +137,8 @@ local storage = {
     profiles = {}
 }
 
+local extractInventoryFromDialog
+
 local vars = {}
 local sell_vars = {}
 local session_inv = {}
@@ -174,7 +176,7 @@ local menu_opacity = imgui.new.float(storage.settings.menu_opacity or 1.0)
 local script_keys = (function() local _A={ {75,57,70,50,65,49,66,56,67,55,68,54,69,53,71,52}, {72,51,74,50,75,49,76,57,77,56,78,55,80,54,81,53}, {82,52,83,53,84,54,85,55,86,56,87,57,88,49,89,50}, {90,51,65,52,66,53,67,54,68,55,69,56,70,57,71,48}, {81,49,87,50,69,51,82,52,84,53,89,54,85,55,73,56}, {79,57,80,48,65,49,83,50,68,51,70,52,71,53,72,54}, {74,55,75,56,76,57,90,48,88,49,67,50,86,51,66,52}, {78,53,77,54,81,55,87,56,69,57,82,48,84,49,89,50}, {85,51,73,52,79,53,80,54,65,55,83,56,68,57,70,48}, {71,49,72,50,74,51,75,52,76,53,90,54,88,55,67,56} } local _B={} for _C=1,#_A do local _D="" for _E=1,#_A[_C] do _D=_D..string.char(_A[_C][_E]) end _B[_C]=_D end return _B end)()
 
 -- ============================================================================
--- РАБОТА С ЛОГАМИ
+-- ГђГЂГЃГЋГ’ГЂ Г‘ Г‹ГЋГѓГЂГЊГ€
 -- ============================================================================
 
 function load_logs()
@@ -230,7 +232,15 @@ function addLog(text)
 end
 
 -- ============================================================================
--- ОБРАБОТЧИКИ СОБЫТИЙ SAMP
+        if STATE.waitingForInventory and text and text ~= "" then
+            local parsedItems = extractInventoryFromDialog(text)
+            if parsedItems and #parsedItems > 0 then
+                session_inv = parsedItems
+                STATE.waitingForInventory = false
+            end
+        end
+
+-- ГЋГЃГђГЂГЃГЋГ’Г—Г€ГЉГ€ Г‘ГЋГЃГ›Г’Г€Г‰ SAMP
 -- ============================================================================
 
 if sampev_status then
@@ -243,7 +253,7 @@ if sampev_status then
 end
 
 -- ============================================================================
--- РАБОТА С БАЗОЙ ПРЕДМЕТОВ
+-- ГђГЂГЃГЋГ’ГЂ Г‘ ГЃГЂГ‡ГЋГ‰ ГЏГђГ…Г„ГЊГ…Г’ГЋГ‚
 -- ============================================================================
 
 function load_item_db()
@@ -290,7 +300,7 @@ function save_item_db()
 end
 
 -- ============================================================================
--- АВТОСКАНИРОВАНИЕ БАЗЫ ПРЕДМЕТОВ
+-- ГЂГ‚Г’ГЋГ‘ГЉГЂГЌГ€ГђГЋГ‚ГЂГЌГ€Г… ГЃГЂГ‡Г› ГЏГђГ…Г„ГЊГ…Г’ГЋГ‚
 -- ============================================================================
 
 function runAutoScan()
@@ -329,12 +339,12 @@ function runAutoScan()
                 local rawName = cleanLine:match("^%s*([^\t]+)")
                 if rawName then
                     rawName = rawName:match("^%s*(.-)%s*$")
-                    if rawName == "Далее" or rawName:find(">>>") or rawName:find("Следующая") then
+                    if rawName == "Г„Г Г«ГҐГҐ" or rawName:find(">>>") or rawName:find("Г‘Г«ГҐГ¤ГіГѕГ№Г Гї") then
                         nextPageIdx = i - 1
-                    elseif rawName ~= "Поиск предмета по названию / индексу"
-                        and rawName ~= "Поиск по категории / Весь список |"
-                        and rawName ~= "Назад"
-                        and rawName ~= "Закрыть" then
+                    elseif rawName ~= "ГЏГ®ГЁГ±ГЄ ГЇГ°ГҐГ¤Г¬ГҐГІГ  ГЇГ® Г­Г Г§ГўГ Г­ГЁГѕ / ГЁГ­Г¤ГҐГЄГ±Гі"
+                        and rawName ~= "ГЏГ®ГЁГ±ГЄ ГЇГ® ГЄГ ГІГҐГЈГ®Г°ГЁГЁ / Г‚ГҐГ±Гј Г±ГЇГЁГ±Г®ГЄ |"
+                        and rawName ~= "ГЌГ Г§Г Г¤"
+                        and rawName ~= "Г‡Г ГЄГ°Г»ГІГј" then
                         
                         local namePart, idPart = rawName:match("^(.-)%s*%[(%d+)%]$")
                         if not namePart then
@@ -385,7 +395,7 @@ function runAutoScan()
 end
 
 -- ============================================================================
--- СОХРАНЕНИЕ И ЗАГРУЗКА КОНФИГА
+-- Г‘ГЋГ•ГђГЂГЌГ…ГЌГ€Г… Г€ Г‡ГЂГѓГђГ“Г‡ГЉГЂ ГЉГЋГЌГ”Г€ГѓГЂ
 -- ============================================================================
 
 function save_main_json()
@@ -501,7 +511,7 @@ function load_main_json()
             for _, item in ipairs(storage.sell_items or {}) do
                 table.insert(sell_vars, {
                     slot = item.slot or 0,
-                    item_name = item.item_name or "Неизвестно",
+                    item_name = item.item_name or "ГЌГҐГЁГ§ГўГҐГ±ГІГ­Г®",
                     item_type = item.item_type or 1,
                     price = imgui.new.char[64](string.sub(u8(item.price or "0"), 1, 63)),
                     amount = imgui.new.char[64](string.sub(u8(item.amount or "1"), 1, 63)),
@@ -516,7 +526,7 @@ function load_main_json()
 end
 
 -- ============================================================================
--- ПРОЦЕСС АВТО-ЗАКУПКИ
+-- ГЏГђГЋГ–Г…Г‘Г‘ ГЂГ‚Г’ГЋ-Г‡ГЂГЉГ“ГЏГЉГ€
 -- ============================================================================
 
 function runBuyingProcess()
@@ -571,16 +581,16 @@ function runBuyingProcess()
 end
 
 -- ============================================================================
--- СКАНИРОВАНИЕ ИНВЕНТАРЯ
+-- Г‘ГЉГЂГЌГ€ГђГЋГ‚ГЂГЌГ€Г… Г€ГЌГ‚Г…ГЌГ’ГЂГђГџ
 -- ============================================================================
 
 local function readJsonFromBitStream(bs)
-    -- КРИТИЧЕСКИ ВАЖНО: сохраняем текущий оффсет
+    -- ГЉГђГ€Г’Г€Г—Г…Г‘ГЉГ€ Г‚ГЂГ†ГЌГЋ: Г±Г®ГµГ°Г Г­ГїГҐГ¬ ГІГҐГЄГіГ№ГЁГ© Г®ГґГґГ±ГҐГІ
     local currentOffset = raknetBitStreamGetReadOffset(bs)
     
-    -- Обработка с защитой указателя
+    -- ГЋГЎГ°Г ГЎГ®ГІГЄГ  Г± Г§Г Г№ГЁГІГ®Г© ГіГЄГ Г§Г ГІГҐГ«Гї
     local function safeReturn(success, data, errorMsg)
-        -- ВСЕГДА возвращаем указатель на место перед выходом
+        -- Г‚Г‘Г…ГѓГ„ГЂ ГўГ®Г§ГўГ°Г Г№Г ГҐГ¬ ГіГЄГ Г§Г ГІГҐГ«Гј Г­Г  Г¬ГҐГ±ГІГ® ГЇГҐГ°ГҐГ¤ ГўГ»ГµГ®Г¤Г®Г¬
         raknetBitStreamSetReadOffset(bs, currentOffset)
         
         if success then
@@ -590,7 +600,7 @@ local function readJsonFromBitStream(bs)
         end
     end
     
-    -- Читаем заголовок (2 байта)
+    -- Г—ГЁГІГ ГҐГ¬ Г§Г ГЈГ®Г«Г®ГўГ®ГЄ (2 ГЎГ Г©ГІГ )
     local header1 = raknetBitStreamReadInt8(bs)
     if not header1 then
         return safeReturn(false, nil, "Failed to read header1")
@@ -601,25 +611,25 @@ local function readJsonFromBitStream(bs)
         return safeReturn(false, nil, "Failed to read header2")
     end
     
-    -- Читаем длину JSON как 32-битное число
+    -- Г—ГЁГІГ ГҐГ¬ Г¤Г«ГЁГ­Гі JSON ГЄГ ГЄ 32-ГЎГЁГІГ­Г®ГҐ Г·ГЁГ±Г«Г®
     local dataLen = raknetBitStreamReadInt32(bs)
     if not dataLen or dataLen <= 0 or dataLen > 65535 then
         return safeReturn(false, nil, "Invalid data length: " .. tostring(dataLen))
     end
     
-    -- Читаем JSON строку ЦЕЛИКОМ (НЕ побайтово!)
+    -- Г—ГЁГІГ ГҐГ¬ JSON Г±ГІГ°Г®ГЄГі Г–Г…Г‹Г€ГЉГЋГЊ (ГЌГ… ГЇГ®ГЎГ Г©ГІГ®ГўГ®!)
     local jsonStr = raknetBitStreamReadString(bs, dataLen)
     if not jsonStr or jsonStr == "" then
         return safeReturn(false, nil, "Failed to read JSON string")
     end
     
-    -- Декодируем JSON
+    -- Г„ГҐГЄГ®Г¤ГЁГ°ГіГҐГ¬ JSON
     local status, decoded = pcall(json.decode, jsonStr)
     if not status or not decoded then
         return safeReturn(false, nil, "JSON decode failed: " .. tostring(decoded))
     end
     
-    -- Успешный возврат (указатель все равно восстанавливается)
+    -- Г“Г±ГЇГҐГёГ­Г»Г© ГўГ®Г§ГўГ°Г ГІ (ГіГЄГ Г§Г ГІГҐГ«Гј ГўГ±ГҐ Г°Г ГўГ­Г® ГўГ®Г±Г±ГІГ Г­Г ГўГ«ГЁГўГ ГҐГІГ±Гї)
     return safeReturn(true, decoded, nil)
 end
 
@@ -628,7 +638,7 @@ local function isInventoryData(data)
         return false
     end
     
-    -- Проверяем ключи инвентаря
+    -- ГЏГ°Г®ГўГҐГ°ГїГҐГ¬ ГЄГ«ГѕГ·ГЁ ГЁГ­ГўГҐГ­ГІГ Г°Гї
     if data.items and type(data.items) == "table" then
         return true
     end
@@ -642,7 +652,7 @@ local function isInventoryData(data)
         return true
     end
     
-    -- Проверяем action для инвентаря
+    -- ГЏГ°Г®ГўГҐГ°ГїГҐГ¬ action Г¤Г«Гї ГЁГ­ГўГҐГ­ГІГ Г°Гї
     if data.action then
         local invActions = {16, 17, 18, 19, 20, 21, 22}
         for _, act in ipairs(invActions) do
@@ -660,54 +670,122 @@ local function extractInventoryItems(data)
         return nil
     end
     
-    -- Вариант 1: data.items
+    -- Г‚Г Г°ГЁГ Г­ГІ 1: data.items
     if data.items and type(data.items) == "table" then
         return data.items
     end
     
-    -- Вариант 2: data.inventory
-    if data.inventory and type(data.inventory) == "table" then
-        return data.inventory
+extractInventoryFromDialog = function(text)
+    if not text or text == "" then
+        return nil
     end
     
-    -- Вариант 3: data.bag
-    if data.bag and type(data.bag) == "table" then
-        return data.bag
+    local result = {}
+    for line in text:gmatch("[^\r\n]+") do
+        local clean = line
+            :gsub("{%x%x%x%x%x%x}", "")
+            :gsub("\t", " ")
+            :gsub("%s+", " ")
+            :match("^%s*(.-)%s*$")
+        
+        if clean and clean ~= "" and not clean:find(">>>", 1, true) then
+            local slot, name, count = clean:match("^%[(%d+)%]%s+(.+)%s+[xX](%d+)$")
+            if not slot then
+                slot, name, count = clean:match("^(%d+)[%.)]%s+(.+)%s+[xX](%d+)$")
+            end
+            if not slot then
+                slot, name = clean:match("^%[(%d+)%]%s+(.+)$")
+            end
+            if not slot then
+                slot, name = clean:match("^(%d+)[%.)]%s+(.+)$")
+            end
+            
+            if slot and name and name ~= "" then
+                table.insert(result, {
+                    slot = tonumber(slot) or 0,
+                    name = name,
+                    item_type = 1,
+                    count = tonumber(count) or 1,
+                    item_id = 0
+                })
+            end
+        end
     end
     
-    -- Вариант 4: data.slots
-    if data.slots and type(data.slots) == "table" then
-        return data.slots
+    if #result > 0 then
+        return result
     end
-    
-    -- Вариант 5: сам data является массивом
-    if data[1] and type(data[1]) == "table" then
-        return data
-    end
-    
     return nil
 end
 
-if sampev_status then
-    function sampev.onReceivePacket(packetId, bs)
-        if packetId == 220 then
-            local parsed = readJsonFromBitStream(bs)
-            
-            if parsed and parsed.success and parsed.data then
-                local data = parsed.data
-                
-                -- Проверяем: ждем ли мы данные инвентаря И это действительно инвентарь
-                if STATE.waitingForInventory and isInventoryData(data) then
-                    local itemsArray = extractInventoryItems(data)
-                    
-                    -- Если нашли массив предметов - парсим в session_inv
+local function applyInventoryItems(itemsArray)
+    if type(itemsArray) ~= "table" then
+        return false
+    end
+
+    local normalized = {}
+    for idx, item in ipairs(itemsArray) do
+        if type(item) == "table" then
+            local slot = item.slot or (idx - 1)
+            local name = item.name or item.itemName or "Unknown"
+            local itemType = item.type or item.itemType or 1
+            local count = item.count or item.amount or item.qty or 1
+            local itemId = item.itemId or item.id or 0
+
+            if name and tostring(name) ~= "" then
+                table.insert(normalized, {
+                    slot = tonumber(slot) or 0,
+                    name = tostring(name),
+                    item_type = tonumber(itemType) or 1,
+                    count = tonumber(count) or 1,
+                    item_id = tonumber(itemId) or 0
+                })
+            end
+        end
+    end
+
+    if #normalized == 0 then
+        return false
+    end
+
+    session_inv = normalized
+    STATE.waitingForInventory = false
+    return true
+end
+
+                    if applyInventoryItems(itemsArray) then
+                        return false
+    if STATE.waitingForInventory then return end
+
+
+        local timeout = 70
+
+            if timeout == 70 then
+                sampSendChat("/invent")
+            elseif timeout == 60 then
+                sampSendChat("/inv")
+            elseif timeout == 50 then
+                sampSendChat("/inventory")
+            end
+
+            if sampIsDialogActive() then
+                local dialogText = sampGetDialogText()
+                local parsedItems = extractInventoryFromDialog(dialogText)
+                if parsedItems and #parsedItems > 0 then
+                    applyInventoryItems(parsedItems)
+                    break
+                end
+            end
+
+
+                    -- Г…Г±Г«ГЁ Г­Г ГёГ«ГЁ Г¬Г Г±Г±ГЁГў ГЇГ°ГҐГ¤Г¬ГҐГІГ®Гў - ГЇГ Г°Г±ГЁГ¬ Гў session_inv
                     if itemsArray and type(itemsArray) == "table" then
                         session_inv = {}
                         
                         for idx, item in ipairs(itemsArray) do
                             if type(item) == "table" then
                                 local slot = item.slot or (idx - 1)
-                                local name = item.name or item.itemName or "Неизвестно"
+                                local name = item.name or item.itemName or "ГЌГҐГЁГ§ГўГҐГ±ГІГ­Г®"
                                 local itemType = item.type or item.itemType or 1
                                 local count = item.count or item.amount or 1
                                 local itemId = item.itemId or item.id or 0
@@ -723,7 +801,7 @@ if sampev_status then
                         end
                         
                         STATE.waitingForInventory = false
-                        return false  -- Скрываем окно инвентаря
+                        return false  -- Г‘ГЄГ°Г»ГўГ ГҐГ¬ Г®ГЄГ­Г® ГЁГ­ГўГҐГ­ГІГ Г°Гї
                     end
                 end
             end
@@ -741,7 +819,7 @@ function startInventoryScan()
         wait(100)
         sampSendChat("/invent")
         
-        -- Ждем данные (макс 5 сек)
+        -- Г†Г¤ГҐГ¬ Г¤Г Г­Г­Г»ГҐ (Г¬Г ГЄГ± 5 Г±ГҐГЄ)
         local timeout = 50
         while STATE.waitingForInventory and timeout > 0 do
             wait(100)
@@ -755,7 +833,7 @@ function startInventoryScan()
 end
 
 -- ============================================================================
--- ПРОЦЕСС АВТО-ПРОДАЖИ
+-- ГЏГђГЋГ–Г…Г‘Г‘ ГЂГ‚Г’ГЋ-ГЏГђГЋГ„ГЂГ†Г€
 -- ============================================================================
 
 local function verifySlotItem(slot, expectedName)
@@ -782,14 +860,14 @@ local function sendSlotSelectPacket(slot, itemType)
             }
             local jsonStr = json.encode(jsonData)
             
-            -- Заголовок пакета
+            -- Г‡Г ГЈГ®Г«Г®ГўГ®ГЄ ГЇГ ГЄГҐГІГ 
             raknetBitStreamWriteInt8(bs, 0x3F)  -- 63
             raknetBitStreamWriteInt8(bs, 0x34)  -- '4'
             
-            -- Длина JSON как 32-битное число
+            -- Г„Г«ГЁГ­Г  JSON ГЄГ ГЄ 32-ГЎГЁГІГ­Г®ГҐ Г·ГЁГ±Г«Г®
             raknetBitStreamWriteInt32(bs, #jsonStr)
             
-            -- JSON строка целиком
+            -- JSON Г±ГІГ°Г®ГЄГ  Г¶ГҐГ«ГЁГЄГ®Г¬
             raknetBitStreamWriteString(bs, jsonStr)
             
             raknetSendBitStreamEx(bs, 2, 8, 0, false)
@@ -823,23 +901,23 @@ function runSellingProcess()
         for i, item in ipairs(sell_queue) do
             if STATE.stopProcess then break end
             
-            -- Проверка слота перед продажей
+            -- ГЏГ°Г®ГўГҐГ°ГЄГ  Г±Г«Г®ГІГ  ГЇГҐГ°ГҐГ¤ ГЇГ°Г®Г¤Г Г¦ГҐГ©
             if not verifySlotItem(item.slot, item.item_name) then
-                addLog("Пропущен слот " .. item.slot .. " - предмет не совпадает!")
+                addLog("ГЏГ°Г®ГЇГіГ№ГҐГ­ Г±Г«Г®ГІ " .. item.slot .. " - ГЇГ°ГҐГ¤Г¬ГҐГІ Г­ГҐ Г±Г®ГўГЇГ Г¤Г ГҐГІ!")
                 goto continue
             end
             
-            -- Шаг 1: Открываем меню "Продажа"
+            -- ГГ ГЈ 1: ГЋГІГЄГ°Г»ГўГ ГҐГ¬ Г¬ГҐГ­Гѕ "ГЏГ°Г®Г¤Г Г¦Г "
             sampSendDialogResponse(9, 1, 0, "")
             wait(global_delay[0])
             if STATE.stopProcess then break end
             
-            -- Шаг 2: Отправляем пакет выбора слота
+            -- ГГ ГЈ 2: ГЋГІГЇГ°Г ГўГ«ГїГҐГ¬ ГЇГ ГЄГҐГІ ГўГ»ГЎГ®Г°Г  Г±Г«Г®ГІГ 
             sendSlotSelectPacket(item.slot, item.item_type)
             wait(global_delay[0] + 300)
             if STATE.stopProcess then break end
             
-            -- Шаг 3: Заполняем цену и количество
+            -- ГГ ГЈ 3: Г‡Г ГЇГ®Г«Г­ГїГҐГ¬ Г¶ГҐГ­Гі ГЁ ГЄГ®Г«ГЁГ·ГҐГ±ГІГўГ®
             local send_data = ""
             if item.is_acc then
                 send_data = item.price .. "," .. item.amount
@@ -857,7 +935,7 @@ function runSellingProcess()
 end
 
 -- ============================================================================
--- ИНТЕРФЕЙС ImGui
+-- Г€ГЌГ’Г…ГђГ”Г…Г‰Г‘ ImGui
 -- ============================================================================
 
 imgui.OnInitialize(function()
@@ -881,7 +959,7 @@ local function renderTab1()
     imgui.BeginChild("DB_Area", imgui.ImVec2(halfW, -1), true)
     imgui.PushItemWidth(-1)
     
-    local q_changed = imgui.InputTextWithHint("##srch", u8"Поиск...", BUFFERS.search, 256)
+    local q_changed = imgui.InputTextWithHint("##srch", u8"ГЏГ®ГЁГ±ГЄ...", BUFFERS.search, 256)
     imgui.PopItemWidth()
     
     if q_changed or last_search == nil then
@@ -947,7 +1025,7 @@ local function renderTab1()
     imgui.SameLine()
     
     imgui.BeginChild("Queue_Area", imgui.ImVec2(halfW, -1), true)
-    if imgui.Button(STATE.isRunning and u8"Остановить" or u8"Запустить скуп", imgui.ImVec2(-1, 55)) and not POSITIONS.global_drag_active then
+    if imgui.Button(STATE.isRunning and u8"ГЋГ±ГІГ Г­Г®ГўГЁГІГј" or u8"Г‡Г ГЇГіГ±ГІГЁГІГј Г±ГЄГіГЇ", imgui.ImVec2(-1, 55)) and not POSITIONS.global_drag_active then
         lua_thread.create(function()
             wait(0)
             if STATE.isRunning then
@@ -976,7 +1054,7 @@ local function renderTab1()
         local idStr = item.str_id ~= "" and (" [ID: " .. item.str_id .. "]") or ""
         imgui.Text(item.str_name .. idStr)
         
-        local label_amt = item.is_acc[0] and u8"Цвет: " or u8"Кол: "
+        local label_amt = item.is_acc[0] and u8"Г–ГўГҐГІ: " or u8"ГЉГ®Г«: "
         imgui.TextDisabled(item.str_price .. u8" $ | " .. label_amt .. item.str_amount)
         imgui.EndGroup()
         
@@ -1029,7 +1107,7 @@ local function renderTab2()
             end
         end
     else
-        imgui.TextDisabled(u8"Пусто")
+        imgui.TextDisabled(u8"ГЏГіГ±ГІГ®")
     end
     if imgui.IsWindowHovered(33) and imgui.IsMouseDragging(0, 0.0) then
         imgui.SetScrollY(imgui.GetScrollY() - imgui.GetIO().MouseDelta.y)
@@ -1043,7 +1121,7 @@ local function renderTab2()
         imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.8, 0.2, 0.2, 0.8))
         imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.9, 0.3, 0.3, 1.0))
         imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0.7, 0.1, 0.1, 1.0))
-        if imgui.Button(u8"Удалить логи за " .. selected_date, imgui.ImVec2(-1, 35)) and not POSITIONS.global_drag_active then
+        if imgui.Button(u8"Г“Г¤Г Г«ГЁГІГј Г«Г®ГЈГЁ Г§Г  " .. selected_date, imgui.ImVec2(-1, 35)) and not POSITIONS.global_drag_active then
             lua_thread.create(function()
                 wait(0)
                 logs[selected_date] = nil
@@ -1063,7 +1141,7 @@ local function renderTab2()
         end
         imgui.EndChild()
     else
-        imgui.TextDisabled(u8"Нет записей.")
+        imgui.TextDisabled(u8"ГЌГҐГІ Г§Г ГЇГЁГ±ГҐГ©.")
     end
     imgui.EndChild()
 end
@@ -1071,18 +1149,18 @@ end
 local function renderTab3()
     imgui.SetCursorPos(imgui.ImVec2(40, 40))
     imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1), "LMMR")
-    imgui.Text(u8"База данных: " .. #item_db .. u8" предметов")
-    imgui.Text(u8"Инвентарь (сессия): " .. #session_inv .. u8" предметов")
+    imgui.Text(u8"ГЃГ Г§Г  Г¤Г Г­Г­Г»Гµ: " .. #item_db .. u8" ГЇГ°ГҐГ¤Г¬ГҐГІГ®Гў")
+    imgui.Text(u8"Г€Г­ГўГҐГ­ГІГ Г°Гј (Г±ГҐГ±Г±ГЁГї): " .. #session_inv .. u8" ГЇГ°ГҐГ¤Г¬ГҐГІГ®Гў")
     imgui.Spacing()
-    imgui.TextDisabled(u8"Версия: 1.8.2")
+    imgui.TextDisabled(u8"Г‚ГҐГ°Г±ГЁГї: 1.8.2")
 end
 
 local function renderTab4()
     imgui.BeginChild("SettingsScroll", imgui.ImVec2(-1, -85))
     
-    imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1), u8"БАЗА ПРЕДМЕТОВ (АВТОСКАН)")
-    imgui.TextWrapped(u8"Откройте диалог 'Скупка: 1/132 (Весь список)' в лавке и нажмите кнопку. Скрипт сам пролистает все страницы и запишет названия с ID.")
-    local scanBtnText = STATE.isScanning and u8"ОСТАНОВИТЬ СКАНИРОВАНИЕ" or u8"ОТСКАНИРОВАТЬ ПРЕДМЕТЫ"
+    imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1), u8"ГЃГЂГ‡ГЂ ГЏГђГ…Г„ГЊГ…Г’ГЋГ‚ (ГЂГ‚Г’ГЋГ‘ГЉГЂГЌ)")
+    imgui.TextWrapped(u8"ГЋГІГЄГ°Г®Г©ГІГҐ Г¤ГЁГ Г«Г®ГЈ 'Г‘ГЄГіГЇГЄГ : 1/132 (Г‚ГҐГ±Гј Г±ГЇГЁГ±Г®ГЄ)' Гў Г«Г ГўГЄГҐ ГЁ Г­Г Г¦Г¬ГЁГІГҐ ГЄГ­Г®ГЇГЄГі. Г‘ГЄГ°ГЁГЇГІ Г±Г Г¬ ГЇГ°Г®Г«ГЁГ±ГІГ ГҐГІ ГўГ±ГҐ Г±ГІГ°Г Г­ГЁГ¶Г» ГЁ Г§Г ГЇГЁГёГҐГІ Г­Г Г§ГўГ Г­ГЁГї Г± ID.")
+    local scanBtnText = STATE.isScanning and u8"ГЋГ‘Г’ГЂГЌГЋГ‚Г€Г’Гњ Г‘ГЉГЂГЌГ€ГђГЋГ‚ГЂГЌГ€Г…" or u8"ГЋГ’Г‘ГЉГЂГЌГ€ГђГЋГ‚ГЂГ’Гњ ГЏГђГ…Г„ГЊГ…Г’Г›"
     if imgui.Button(scanBtnText, imgui.ImVec2(-1, 55)) and not POSITIONS.global_drag_active then
         lua_thread.create(function()
             wait(0)
@@ -1101,12 +1179,12 @@ local function renderTab4()
     local resX = imgui.GetIO().DisplaySize.x
     local resY = imgui.GetIO().DisplaySize.y
     
-    imgui.Text(u8"Настройки окна и задержки:")
+    imgui.Text(u8"ГЌГ Г±ГІГ°Г®Г©ГЄГЁ Г®ГЄГ­Г  ГЁ Г§Г Г¤ГҐГ°Г¦ГЄГЁ:")
     imgui.PushItemWidth(350)
     
     local max_w = tonumber(resX) and math.min(2560, resX) or 2560
     local temp_w = imgui.new.int(win_W[0])
-    if imgui.SliderInt(u8"Ширина", temp_w, 750, max_w) then
+    if imgui.SliderInt(u8"ГГЁГ°ГЁГ­Г ", temp_w, 750, max_w) then
         win_W[0] = temp_w[0]
     end
     if imgui.IsItemDeactivatedAfterEdit() then 
@@ -1118,7 +1196,7 @@ local function renderTab4()
     
     local max_h = tonumber(resY) and math.min(1080, resY) or 1080
     local temp_h = imgui.new.int(win_H[0])
-    if imgui.SliderInt(u8"Высота", temp_h, 450, max_h) then
+    if imgui.SliderInt(u8"Г‚Г»Г±Г®ГІГ ", temp_h, 450, max_h) then
         win_H[0] = temp_h[0]
     end
     if imgui.IsItemDeactivatedAfterEdit() then 
@@ -1128,7 +1206,7 @@ local function renderTab4()
         end)
     end
     
-    imgui.SliderInt(u8"Задержка (мс)", global_delay, 500, 3000)
+    imgui.SliderInt(u8"Г‡Г Г¤ГҐГ°Г¦ГЄГ  (Г¬Г±)", global_delay, 500, 3000)
     if imgui.IsItemDeactivatedAfterEdit() then 
         lua_thread.create(function()
             wait(0)
@@ -1136,7 +1214,7 @@ local function renderTab4()
         end)
     end
     
-    imgui.SliderFloat(u8"Прозрачность фона", menu_opacity, 0.2, 1.0, "%.2f")
+    imgui.SliderFloat(u8"ГЏГ°Г®Г§Г°Г Г·Г­Г®Г±ГІГј ГґГ®Г­Г ", menu_opacity, 0.2, 1.0, "%.2f")
     if imgui.IsItemDeactivatedAfterEdit() then 
         lua_thread.create(function()
             wait(0)
@@ -1147,15 +1225,15 @@ local function renderTab4()
     imgui.PopItemWidth()
     
     imgui.Spacing()
-    imgui.Text(u8"Настройки плавающей кнопки:")
-    if imgui.Checkbox(u8"Показывать кнопку на экране", show_screen_btn) then
+    imgui.Text(u8"ГЌГ Г±ГІГ°Г®Г©ГЄГЁ ГЇГ«Г ГўГ ГѕГ№ГҐГ© ГЄГ­Г®ГЇГЄГЁ:")
+    if imgui.Checkbox(u8"ГЏГ®ГЄГ Г§Г»ГўГ ГІГј ГЄГ­Г®ГЇГЄГі Г­Г  ГЅГЄГ°Г Г­ГҐ", show_screen_btn) then
         lua_thread.create(function()
             wait(0)
             save_main_json()
         end)
     end
     imgui.PushItemWidth(350)
-    imgui.SliderFloat(u8"Размер кнопки", btn_size, 30.0, 150.0)
+    imgui.SliderFloat(u8"ГђГ Г§Г¬ГҐГ° ГЄГ­Г®ГЇГЄГЁ", btn_size, 30.0, 150.0)
     if imgui.IsItemDeactivatedAfterEdit() then 
         lua_thread.create(function()
             wait(0)
@@ -1165,7 +1243,7 @@ local function renderTab4()
     imgui.PopItemWidth()
     
     imgui.Spacing()
-    imgui.Text(u8"Цвета интерфейса")
+    imgui.Text(u8"Г–ГўГҐГІГ  ГЁГ­ГІГҐГ°ГґГҐГ©Г±Г ")
     
     imgui.Text("R: " .. math.floor(cAcc[0]*255))
     imgui.SameLine(80)
@@ -1177,7 +1255,7 @@ local function renderTab4()
         imgui.OpenPopup("PickerAcc")
     end
     imgui.SameLine()
-    imgui.Text(u8"Акцент")
+    imgui.Text(u8"ГЂГЄГ¶ГҐГ­ГІ")
     if imgui.BeginPopup("PickerAcc") then
         imgui.ColorPicker3("##p1", cAcc)
         save_main_json()
@@ -1195,7 +1273,7 @@ local function renderTab4()
         imgui.OpenPopup("PickerBg")
     end
     imgui.SameLine()
-    imgui.Text(u8"Фон")
+    imgui.Text(u8"Г”Г®Г­")
     if imgui.BeginPopup("PickerBg") then
         imgui.ColorPicker3("##p2", cBg)
         save_main_json()
@@ -1213,7 +1291,7 @@ local function renderTab4()
         imgui.OpenPopup("PickerBtn")
     end
     imgui.SameLine()
-    imgui.Text(u8"Цвет кнопки")
+    imgui.Text(u8"Г–ГўГҐГІ ГЄГ­Г®ГЇГЄГЁ")
     if imgui.BeginPopup("PickerBtn") then
         imgui.ColorPicker3("##p3", cBtn)
         save_main_json()
@@ -1226,7 +1304,7 @@ local function renderTab4()
     imgui.EndChild()
     
     imgui.SetCursorPosY(imgui.GetWindowHeight() - 75)
-    if imgui.Button(u8"Сохранить", imgui.ImVec2(-1, 55)) and not POSITIONS.global_drag_active then
+    if imgui.Button(u8"Г‘Г®ГµГ°Г Г­ГЁГІГј", imgui.ImVec2(-1, 55)) and not POSITIONS.global_drag_active then
         lua_thread.create(function()
             wait(0)
             save_main_json()
@@ -1237,18 +1315,18 @@ end
 local function renderTab5()
     imgui.BeginChild("ProfilesArea", imgui.ImVec2(-1, -1), true)
     imgui.SetCursorPos(imgui.ImVec2(20, 20))
-    imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"Настройка конфигов")
+    imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"ГЌГ Г±ГІГ°Г®Г©ГЄГ  ГЄГ®Г­ГґГЁГЈГ®Гў")
     imgui.Separator()
     imgui.Spacing()
     
     imgui.SetCursorPosX(20)
-    imgui.Text(u8"Название нового конфига:")
+    imgui.Text(u8"ГЌГ Г§ГўГ Г­ГЁГҐ Г­Г®ГўГ®ГЈГ® ГЄГ®Г­ГґГЁГЈГ :")
     imgui.SetCursorPosX(20)
     imgui.PushItemWidth(300)
     imgui.InputText("##prof_name", BUFFERS.profileName, 256)
     imgui.PopItemWidth()
     imgui.SameLine()
-    if imgui.Button(u8"Сохранить конфиг", imgui.ImVec2(200, 35)) and not POSITIONS.global_drag_active then
+    if imgui.Button(u8"Г‘Г®ГµГ°Г Г­ГЁГІГј ГЄГ®Г­ГґГЁГЈ", imgui.ImVec2(200, 35)) and not POSITIONS.global_drag_active then
         lua_thread.create(function()
             wait(0)
             local pName = u8:decode(ffi.string(BUFFERS.profileName))
@@ -1272,7 +1350,7 @@ local function renderTab5()
     
     imgui.Spacing()
     imgui.SetCursorPosX(20)
-    imgui.Text(u8"Ваши сохраненные конфиги:")
+    imgui.Text(u8"Г‚Г ГёГЁ Г±Г®ГµГ°Г Г­ГҐГ­Г­Г»ГҐ ГЄГ®Г­ГґГЁГЈГЁ:")
     imgui.SetCursorPosX(20)
     imgui.BeginChild("ProfList", imgui.ImVec2(-20, -15), true)
     
@@ -1280,10 +1358,10 @@ local function renderTab5()
     for pName, pItems in pairs(storage.profiles) do
         has_profiles = true
         imgui.SetCursorPosX(15)
-        imgui.Text(u8(pName) .. " (" .. #pItems .. u8" предметов)")
+        imgui.Text(u8(pName) .. " (" .. #pItems .. u8" ГЇГ°ГҐГ¤Г¬ГҐГІГ®Гў)")
         
         imgui.SameLine(imgui.GetWindowWidth() - 250)
-        if imgui.Button(u8"Загрузить##ld" .. pName, imgui.ImVec2(100, 35)) and not POSITIONS.global_drag_active then
+        if imgui.Button(u8"Г‡Г ГЈГ°ГіГ§ГЁГІГј##ld" .. pName, imgui.ImVec2(100, 35)) and not POSITIONS.global_drag_active then
             lua_thread.create(function()
                 wait(0)
                 vars = {}
@@ -1306,7 +1384,7 @@ local function renderTab5()
         end
         
         imgui.SameLine()
-        if imgui.Button(u8"Удалить##dl" .. pName, imgui.ImVec2(100, 35)) and not POSITIONS.global_drag_active then
+        if imgui.Button(u8"Г“Г¤Г Г«ГЁГІГј##dl" .. pName, imgui.ImVec2(100, 35)) and not POSITIONS.global_drag_active then
             lua_thread.create(function()
                 wait(0)
                 storage.profiles[pName] = nil
@@ -1318,7 +1396,7 @@ local function renderTab5()
     
     if not has_profiles then
         imgui.SetCursorPosX(15)
-        imgui.TextDisabled(u8"У вас пока нет сохраненных конфигов.")
+        imgui.TextDisabled(u8"Г“ ГўГ Г± ГЇГ®ГЄГ  Г­ГҐГІ Г±Г®ГµГ°Г Г­ГҐГ­Г­Г»Гµ ГЄГ®Г­ГґГЁГЈГ®Гў.")
     end
     
     if imgui.IsWindowHovered(33) and imgui.IsMouseDragging(0, 0.0) then
@@ -1331,10 +1409,10 @@ end
 local function renderTab6()
     local halfW = (imgui.GetWindowWidth() / 2) - 10
     
-    -- Левая колонка: Инвентарь сессии
+    -- Г‹ГҐГўГ Гї ГЄГ®Г«Г®Г­ГЄГ : Г€Г­ГўГҐГ­ГІГ Г°Гј Г±ГҐГ±Г±ГЁГЁ
     imgui.BeginChild("SessionInv_Area", imgui.ImVec2(halfW, -1), true)
     
-    if imgui.Button(u8"Обновить список", imgui.ImVec2(-1, 45)) and not POSITIONS.global_drag_active then
+    if imgui.Button(u8"ГЋГЎГ­Г®ГўГЁГІГј Г±ГЇГЁГ±Г®ГЄ", imgui.ImVec2(-1, 45)) and not POSITIONS.global_drag_active then
         lua_thread.create(function()
             wait(0)
             startInventoryScan()
@@ -1344,7 +1422,7 @@ local function renderTab6()
     imgui.Separator()
     
     imgui.PushItemWidth(-1)
-    imgui.InputTextWithHint("##sellsrch", u8"Поиск...", BUFFERS.sellSearch, 256)
+    imgui.InputTextWithHint("##sellsrch", u8"ГЏГ®ГЁГ±ГЄ...", BUFFERS.sellSearch, 256)
     imgui.PopItemWidth()
     
     imgui.BeginChild("SessionInvScroll", imgui.ImVec2(-1, -1))
@@ -1353,10 +1431,10 @@ local function renderTab6()
         local search_query = ru_lower(u8:decode(ffi.string(BUFFERS.sellSearch)))
         
         for idx, item in ipairs(session_inv) do
-            local item_name = tostring(item.name or "Неизвестно")
+            local item_name = tostring(item.name or "ГЌГҐГЁГ§ГўГҐГ±ГІГ­Г®")
             local item_name_lower = ru_lower(item_name)
             
-            -- Фильтруем по поиску
+            -- Г”ГЁГ«ГјГІГ°ГіГҐГ¬ ГЇГ® ГЇГ®ГЁГ±ГЄГі
             if search_query == "" or item_name_lower:find(search_query, 1, true) then
                 local displayName = string.format("[%d] %s (x%d)", item.slot, item_name, item.count or 1)
                 
@@ -1370,7 +1448,7 @@ local function renderTab6()
                             UI.sellEditIndex = -1
                             UI.open_sell_modal = true
                             
-                            -- Сохраняем данные для добавления
+                            -- Г‘Г®ГµГ°Г Г­ГїГҐГ¬ Г¤Г Г­Г­Г»ГҐ Г¤Г«Гї Г¤Г®ГЎГ ГўГ«ГҐГ­ГЁГї
                             UI.temp_sell_slot = item.slot
                             UI.temp_sell_name = item_name
                             UI.temp_sell_type = item.item_type or 1
@@ -1380,7 +1458,7 @@ local function renderTab6()
             end
         end
     else
-        imgui.TextDisabled(u8"Нажмите 'Обновить список' для сканирования")
+        imgui.TextDisabled(u8"ГЌГ Г¦Г¬ГЁГІГҐ 'ГЋГЎГ­Г®ГўГЁГІГј Г±ГЇГЁГ±Г®ГЄ' Г¤Г«Гї Г±ГЄГ Г­ГЁГ°Г®ГўГ Г­ГЁГї")
     end
     
     if imgui.IsWindowHovered(33) and imgui.IsMouseDragging(0, 0.0) then
@@ -1391,9 +1469,9 @@ local function renderTab6()
     
     imgui.SameLine()
     
-    -- Правая колонка: Очередь продажи
+    -- ГЏГ°Г ГўГ Гї ГЄГ®Г«Г®Г­ГЄГ : ГЋГ·ГҐГ°ГҐГ¤Гј ГЇГ°Г®Г¤Г Г¦ГЁ
     imgui.BeginChild("SellQueue_Area", imgui.ImVec2(halfW, -1), true)
-    if imgui.Button(STATE.isSelling and u8"Остановить" or u8"Запустить продажу", imgui.ImVec2(-1, 55)) and not POSITIONS.global_drag_active then
+    if imgui.Button(STATE.isSelling and u8"ГЋГ±ГІГ Г­Г®ГўГЁГІГј" or u8"Г‡Г ГЇГіГ±ГІГЁГІГј ГЇГ°Г®Г¤Г Г¦Гі", imgui.ImVec2(-1, 55)) and not POSITIONS.global_drag_active then
         lua_thread.create(function()
             wait(0)
             if STATE.isSelling then
@@ -1420,9 +1498,9 @@ local function renderTab6()
         
         imgui.SameLine(40)
         imgui.BeginGroup()
-        imgui.Text(string.format("[Слот %d] %s", item.slot, item.item_name))
+        imgui.Text(string.format("[Г‘Г«Г®ГІ %d] %s", item.slot, item.item_name))
         
-        local label_amt = item.is_acc[0] and u8"Цвет: " or u8"Кол: "
+        local label_amt = item.is_acc[0] and u8"Г–ГўГҐГІ: " or u8"ГЉГ®Г«: "
         imgui.TextDisabled(item.str_price .. u8" $ | " .. label_amt .. item.str_amount)
         imgui.EndGroup()
         
@@ -1551,7 +1629,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
         
         imgui.Begin("##CustomLavka", UI.show_custom_lavka, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoMove)
         
-        local titleText = u8"УПРАВЛЕНИЕ ЛАВКОЙ"
+        local titleText = u8"Г“ГЏГђГЂГ‚Г‹Г…ГЌГ€Г… Г‹ГЂГ‚ГЉГЋГ‰"
         local titleW = imgui.CalcTextSize(titleText).x
         imgui.SetCursorPos(imgui.ImVec2((lavkaW - titleW) / 2, 15))
         imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), titleText)
@@ -1573,11 +1651,11 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
         local btnH = 35
         
         imgui.BeginChild("LeftCol", imgui.ImVec2(colW, -15), true)
-        imgui.SetCursorPosX((colW - imgui.CalcTextSize(u8"Скрипт LMMR").x) / 2)
-        imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"Скрипт LMMR")
+        imgui.SetCursorPosX((colW - imgui.CalcTextSize(u8"Г‘ГЄГ°ГЁГЇГІ LMMR").x) / 2)
+        imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"Г‘ГЄГ°ГЁГЇГІ LMMR")
         imgui.Separator()
         
-        if imgui.Button(u8"Открыть меню LMMR", imgui.ImVec2(-1, btnH)) then
+        if imgui.Button(u8"ГЋГІГЄГ°Г»ГІГј Г¬ГҐГ­Гѕ LMMR", imgui.ImVec2(-1, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 UI.CentralGlMenu[0] = true
@@ -1585,16 +1663,16 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             end)
         end
         
-        if imgui.Button(u8"Выбрать конфиг", imgui.ImVec2(-1, btnH)) then
+        if imgui.Button(u8"Г‚Г»ГЎГ°Г ГІГј ГЄГ®Г­ГґГЁГЈ", imgui.ImVec2(-1, btnH)) then
             lua_thread.create(function()
                 wait(0)
-                imgui.OpenPopup(u8"Выбор конфига")
+                imgui.OpenPopup(u8"Г‚Г»ГЎГ®Г° ГЄГ®Г­ГґГЁГЈГ ")
             end)
         end
         
         imgui.SetNextWindowPos(imgui.ImVec2(resX / 2, resY / 2), imgui.Cond.Appearing, imgui.ImVec2(0.5, 0.5))
-        if imgui.BeginPopupModal(u8"Выбор конфига", nil, imgui.WindowFlags.AlwaysAutoResize + imgui.WindowFlags.NoMove) then
-            imgui.Text(u8"Выберите конфиг для загрузки:")
+        if imgui.BeginPopupModal(u8"Г‚Г»ГЎГ®Г° ГЄГ®Г­ГґГЁГЈГ ", nil, imgui.WindowFlags.AlwaysAutoResize + imgui.WindowFlags.NoMove) then
+            imgui.Text(u8"Г‚Г»ГЎГҐГ°ГЁГІГҐ ГЄГ®Г­ГґГЁГЈ Г¤Г«Гї Г§Г ГЈГ°ГіГ§ГЄГЁ:")
             imgui.Separator()
             imgui.Spacing()
             
@@ -1627,12 +1705,12 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                 imgui.Spacing()
             end
             if not has_p then 
-                imgui.TextDisabled(u8"Нет сохраненных конфигов") 
+                imgui.TextDisabled(u8"ГЌГҐГІ Г±Г®ГµГ°Г Г­ГҐГ­Г­Г»Гµ ГЄГ®Г­ГґГЁГЈГ®Гў") 
             end
             
             imgui.Spacing()
             imgui.Separator()
-            if imgui.Button(u8"Закрыть", imgui.ImVec2(250, 35)) then
+            if imgui.Button(u8"Г‡Г ГЄГ°Г»ГІГј", imgui.ImVec2(250, 35)) then
                 imgui.CloseCurrentPopup()
             end
             imgui.EndPopup()
@@ -1640,12 +1718,12 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
         
         imgui.Spacing()
         local c_preset = active_preset_name ~= "" and active_preset_name or "Main.json"
-        imgui.TextDisabled(u8"Пресет: " .. c_preset)
+        imgui.TextDisabled(u8"ГЏГ°ГҐГ±ГҐГІ: " .. c_preset)
         imgui.Spacing()
         
         imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.2, 0.7, 0.2, 0.8))
         imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.2, 0.8, 0.2, 1.0))
-        if imgui.Button(u8"Выставить скупку", imgui.ImVec2(-1, btnH + 10)) then
+        if imgui.Button(u8"Г‚Г»Г±ГІГ ГўГЁГІГј Г±ГЄГіГЇГЄГі", imgui.ImVec2(-1, btnH + 10)) then
             lua_thread.create(function()
                 wait(0)
                 runBuyingProcess()
@@ -1656,7 +1734,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
         
         imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.9, 0.6, 0.2, 0.8))
         imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(1.0, 0.7, 0.3, 1.0))
-        if imgui.Button(u8"Авто-продажа", imgui.ImVec2(-1, btnH + 10)) then
+        if imgui.Button(u8"ГЂГўГІГ®-ГЇГ°Г®Г¤Г Г¦Г ", imgui.ImVec2(-1, btnH + 10)) then
             lua_thread.create(function()
                 wait(0)
                 runSellingProcess()
@@ -1670,13 +1748,13 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
         imgui.SameLine()
         
         imgui.BeginChild("RightCol", imgui.ImVec2(colW, -15), true)
-        imgui.SetCursorPosX((colW - imgui.CalcTextSize(u8"Серверная лавка").x) / 2)
-        imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"Серверная лавка")
+        imgui.SetCursorPosX((colW - imgui.CalcTextSize(u8"Г‘ГҐГ°ГўГҐГ°Г­Г Гї Г«Г ГўГЄГ ").x) / 2)
+        imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"Г‘ГҐГ°ГўГҐГ°Г­Г Гї Г«Г ГўГЄГ ")
         imgui.Separator()
         
         local tBtnW = (colW - 15) / 2
         
-        if imgui.Button(u8"Продажа", imgui.ImVec2(tBtnW, btnH)) then
+        if imgui.Button(u8"ГЏГ°Г®Г¤Г Г¦Г ", imgui.ImVec2(tBtnW, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 sampSendDialogResponse(9, 1, 0, "")
@@ -1684,7 +1762,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             end)
         end
         imgui.SameLine()
-        if imgui.Button(u8"Скупка", imgui.ImVec2(tBtnW, btnH)) then
+        if imgui.Button(u8"Г‘ГЄГіГЇГЄГ ", imgui.ImVec2(tBtnW, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 sampSendDialogResponse(9, 1, 1, "")
@@ -1692,7 +1770,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             end)
         end
         
-        if imgui.Button(u8"Название", imgui.ImVec2(tBtnW, btnH)) then
+        if imgui.Button(u8"ГЌГ Г§ГўГ Г­ГЁГҐ", imgui.ImVec2(tBtnW, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 sampSendDialogResponse(9, 1, 5, "")
@@ -1700,7 +1778,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             end)
         end
         imgui.SameLine()
-        if imgui.Button(u8"Товары", imgui.ImVec2(tBtnW, btnH)) then
+        if imgui.Button(u8"Г’Г®ГўГ Г°Г»", imgui.ImVec2(tBtnW, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 sampSendDialogResponse(9, 1, 3, "")
@@ -1708,7 +1786,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             end)
         end
         
-        if imgui.Button(u8"История сделок", imgui.ImVec2(-1, btnH)) then
+        if imgui.Button(u8"Г€Г±ГІГ®Г°ГЁГї Г±Г¤ГҐГ«Г®ГЄ", imgui.ImVec2(-1, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 sampSendDialogResponse(9, 1, 4, "")
@@ -1717,11 +1795,11 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
         end
         
         imgui.Spacing()
-        imgui.TextDisabled(u8"Прекратить:")
+        imgui.TextDisabled(u8"ГЏГ°ГҐГЄГ°Г ГІГЁГІГј:")
         
         imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.8, 0.2, 0.2, 0.7))
         imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.9, 0.3, 0.3, 1.0))
-        if imgui.Button(u8"Скуп", imgui.ImVec2(tBtnW, btnH)) then
+        if imgui.Button(u8"Г‘ГЄГіГЇ", imgui.ImVec2(tBtnW, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 sampSendDialogResponse(9, 1, 2, "")
@@ -1729,7 +1807,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             end)
         end
         imgui.SameLine()
-        if imgui.Button(u8"Аренду", imgui.ImVec2(tBtnW, btnH)) then
+        if imgui.Button(u8"ГЂГ°ГҐГ­Г¤Гі", imgui.ImVec2(tBtnW, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 sampSendDialogResponse(9, 1, 6, "")
@@ -1764,11 +1842,11 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             imgui.Begin("##AuthWindow", UI.CentralGlMenu, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoResize)
             
             imgui.SetCursorPos(imgui.ImVec2(20, 20))
-            imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"АВТОРИЗАЦИЯ LMMR")
+            imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"ГЂГ‚Г’ГЋГђГ€Г‡ГЂГ–Г€Гџ LMMR")
             imgui.Separator()
             
             imgui.SetCursorPos(imgui.ImVec2(20, 60))
-            imgui.Text(u8"Введите ключ доступа:")
+            imgui.Text(u8"Г‚ГўГҐГ¤ГЁГІГҐ ГЄГ«ГѕГ· Г¤Г®Г±ГІГіГЇГ :")
             
             imgui.SetCursorPos(imgui.ImVec2(20, 85))
             imgui.PushItemWidth(310)
@@ -1777,11 +1855,11 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             
             if AUTH.authError then
                 imgui.SetCursorPos(imgui.ImVec2(20, 115))
-                imgui.TextColored(imgui.ImVec4(1.0, 0.2, 0.2, 1.0), u8"Неверный ключ!")
+                imgui.TextColored(imgui.ImVec4(1.0, 0.2, 0.2, 1.0), u8"ГЌГҐГўГҐГ°Г­Г»Г© ГЄГ«ГѕГ·!")
             end
             
             imgui.SetCursorPos(imgui.ImVec2(20, 135))
-            if imgui.Button(u8"ВОЙТИ", imgui.ImVec2(310, 45)) then
+            if imgui.Button(u8"Г‚ГЋГ‰Г’Г€", imgui.ImVec2(310, 45)) then
                 if not POSITIONS.global_drag_active then
                     lua_thread.create(function()
                         wait(0)
@@ -1832,7 +1910,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), "LMMR 1.8.2")
             
             imgui.SetCursorPos(imgui.ImVec2(imgui.GetWindowWidth() - 180, 15))
-            if imgui.Button(u8"Настройки", imgui.ImVec2(120, 45)) and not POSITIONS.global_drag_active then
+            if imgui.Button(u8"ГЌГ Г±ГІГ°Г®Г©ГЄГЁ", imgui.ImVec2(120, 45)) and not POSITIONS.global_drag_active then
                 lua_thread.create(function()
                     wait(0)
                     UI.currentTab = 4
@@ -1851,11 +1929,11 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             imgui.BeginChild("SideBar", imgui.ImVec2(210, -15), true)
             imgui.SetCursorPosY(20)
             local nav_items = {
-                {u8"Предметы", 1},
-                {u8"Продажа", 6},
-                {u8"Логи", 2},
-                {u8"Инфо", 3},
-                {u8"Конфиги", 5}
+                {u8"ГЏГ°ГҐГ¤Г¬ГҐГІГ»", 1},
+                {u8"ГЏГ°Г®Г¤Г Г¦Г ", 6},
+                {u8"Г‹Г®ГЈГЁ", 2},
+                {u8"Г€Г­ГґГ®", 3},
+                {u8"ГЉГ®Г­ГґГЁГЈГЁ", 5}
             }
             for _, nav in ipairs(nav_items) do
                 imgui.SetCursorPosX(15)
@@ -1892,7 +1970,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             
             imgui.EndChild()
 
-            -- Модальное окно добавления предмета для скупки
+            -- ГЊГ®Г¤Г Г«ГјГ­Г®ГҐ Г®ГЄГ­Г® Г¤Г®ГЎГ ГўГ«ГҐГ­ГЁГї ГЇГ°ГҐГ¤Г¬ГҐГІГ  Г¤Г«Гї Г±ГЄГіГЇГЄГЁ
             if UI.open_add_modal then
                 imgui.OpenPopup("CEF_Modal")
                 UI.open_add_modal = false
@@ -1902,32 +1980,32 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             imgui.SetNextWindowPos(imgui.ImVec2(resX / 2, resY / 2), imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
             if imgui.BeginPopupModal("CEF_Modal", nil, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoResize) then
                 imgui.SetCursorPos(imgui.ImVec2(30, 30))
-                imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), UI.editIndex == -1 and u8"ДОБАВЛЕНИЕ ПРЕДМЕТА" or u8"ИЗМЕНЕНИЕ ПРЕДМЕТА")
+                imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), UI.editIndex == -1 and u8"Г„ГЋГЃГЂГ‚Г‹Г…ГЌГ€Г… ГЏГђГ…Г„ГЊГ…Г’ГЂ" or u8"Г€Г‡ГЊГ…ГЌГ…ГЌГ€Г… ГЏГђГ…Г„ГЊГ…Г’ГЂ")
                 imgui.Separator()
                 
                 imgui.SetCursorPos(imgui.ImVec2(30, 80))
                 imgui.BeginGroup()
                 
                 imgui.PushItemWidth(590) 
-                imgui.Text(u8"Название (для себя):")
+                imgui.Text(u8"ГЌГ Г§ГўГ Г­ГЁГҐ (Г¤Г«Гї Г±ГҐГЎГї):")
                 imgui.InputText("##name_in", BUFFERS.addName, 256)
                 imgui.Spacing()
                 
-                imgui.Text(u8"ID Предмета:")
+                imgui.Text(u8"ID ГЏГ°ГҐГ¤Г¬ГҐГІГ :")
                 imgui.InputText("##id_in", BUFFERS.addId, 64)
                 imgui.Spacing()
                 
-                imgui.Text(u8"Цена за 1 шт:")
+                imgui.Text(u8"Г–ГҐГ­Г  Г§Г  1 ГёГІ:")
                 imgui.InputText("##prc_in", BUFFERS.addPrice, 64)
                 imgui.Spacing()
                 
-                imgui.Checkbox(u8"Это аксессуар?", BUFFERS.addIsAccessory)
+                imgui.Checkbox(u8"ГќГІГ® Г ГЄГ±ГҐГ±Г±ГіГ Г°?", BUFFERS.addIsAccessory)
                 imgui.Spacing()
 
                 if BUFFERS.addIsAccessory[0] then
-                    imgui.Text(u8"ID цвета (0-12):")
+                    imgui.Text(u8"ID Г¶ГўГҐГІГ  (0-12):")
                 else
-                    imgui.Text(u8"Количество:")
+                    imgui.Text(u8"ГЉГ®Г«ГЁГ·ГҐГ±ГІГўГ®:")
                 end
                 imgui.InputText("##amt_in", BUFFERS.addAmount, 64)
                 
@@ -1935,7 +2013,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                 imgui.EndGroup()
                 
                 imgui.SetCursorPos(imgui.ImVec2(30, 510)) 
-                if imgui.Button(u8"Сохранить", imgui.ImVec2(285, 60)) and not POSITIONS.global_drag_active then
+                if imgui.Button(u8"Г‘Г®ГµГ°Г Г­ГЁГІГј", imgui.ImVec2(285, 60)) and not POSITIONS.global_drag_active then
                     lua_thread.create(function()
                         wait(0)
                         local s_name = ffi.string(BUFFERS.addName)
@@ -1974,13 +2052,13 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                 end
                 imgui.SameLine()
                 imgui.SetCursorPosX(335)
-                if imgui.Button(u8"Отмена", imgui.ImVec2(285, 60)) and not POSITIONS.global_drag_active then
+                if imgui.Button(u8"ГЋГІГ¬ГҐГ­Г ", imgui.ImVec2(285, 60)) and not POSITIONS.global_drag_active then
                     imgui.CloseCurrentPopup()
                 end
                 imgui.EndPopup()
             end
             
-            -- Модальное окно добавления предмета для продажи
+            -- ГЊГ®Г¤Г Г«ГјГ­Г®ГҐ Г®ГЄГ­Г® Г¤Г®ГЎГ ГўГ«ГҐГ­ГЁГї ГЇГ°ГҐГ¤Г¬ГҐГІГ  Г¤Г«Гї ГЇГ°Г®Г¤Г Г¦ГЁ
             if UI.open_sell_modal then
                 imgui.OpenPopup("Sell_Modal")
                 UI.open_sell_modal = false
@@ -1990,7 +2068,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             imgui.SetNextWindowPos(imgui.ImVec2(resX / 2, resY / 2), imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
             if imgui.BeginPopupModal("Sell_Modal", nil, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoResize) then
                 imgui.SetCursorPos(imgui.ImVec2(30, 30))
-                imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), UI.sellEditIndex == -1 and u8"ДОБАВИТЬ В ПРОДАЖУ" or u8"ИЗМЕНИТЬ НАСТРОЙКИ")
+                imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), UI.sellEditIndex == -1 and u8"Г„ГЋГЃГЂГ‚Г€Г’Гњ Г‚ ГЏГђГЋГ„ГЂГ†Г“" or u8"Г€Г‡ГЊГ…ГЌГ€Г’Гњ ГЌГЂГ‘Г’ГђГЋГ‰ГЉГ€")
                 imgui.Separator()
                 
                 imgui.SetCursorPos(imgui.ImVec2(30, 80))
@@ -1998,17 +2076,17 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                 
                 imgui.PushItemWidth(440)
                 
-                imgui.Text(u8"Цена за 1 шт:")
+                imgui.Text(u8"Г–ГҐГ­Г  Г§Г  1 ГёГІ:")
                 imgui.InputText("##sell_prc_in", BUFFERS.sellPrice, 64)
                 imgui.Spacing()
                 
-                imgui.Checkbox(u8"Это аксессуар?", BUFFERS.sellIsAccessory)
+                imgui.Checkbox(u8"ГќГІГ® Г ГЄГ±ГҐГ±Г±ГіГ Г°?", BUFFERS.sellIsAccessory)
                 imgui.Spacing()
 
                 if BUFFERS.sellIsAccessory[0] then
-                    imgui.Text(u8"ID цвета (0-12):")
+                    imgui.Text(u8"ID Г¶ГўГҐГІГ  (0-12):")
                 else
-                    imgui.Text(u8"Количество:")
+                    imgui.Text(u8"ГЉГ®Г«ГЁГ·ГҐГ±ГІГўГ®:")
                 end
                 imgui.InputText("##sell_amt_in", BUFFERS.sellAmount, 64)
                 
@@ -2016,7 +2094,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                 imgui.EndGroup()
                 
                 imgui.SetCursorPos(imgui.ImVec2(30, 310))
-                if imgui.Button(u8"Сохранить", imgui.ImVec2(210, 60)) and not POSITIONS.global_drag_active then
+                if imgui.Button(u8"Г‘Г®ГµГ°Г Г­ГЁГІГј", imgui.ImVec2(210, 60)) and not POSITIONS.global_drag_active then
                     lua_thread.create(function()
                         wait(0)
                         local s_price = ffi.string(BUFFERS.sellPrice)
@@ -2025,7 +2103,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                         if UI.sellEditIndex == -1 then
                             table.insert(sell_vars, {
                                 slot = UI.temp_sell_slot or 0,
-                                item_name = UI.temp_sell_name or "Неизвестно",
+                                item_name = UI.temp_sell_name or "ГЌГҐГЁГ§ГўГҐГ±ГІГ­Г®",
                                 item_type = UI.temp_sell_type or 1,
                                 price = imgui.new.char[64](string.sub(s_price, 1, 63)),
                                 amount = imgui.new.char[64](string.sub(s_amount, 1, 63)),
@@ -2048,7 +2126,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                 end
                 imgui.SameLine()
                 imgui.SetCursorPosX(260)
-                if imgui.Button(u8"Отмена", imgui.ImVec2(210, 60)) and not POSITIONS.global_drag_active then
+                if imgui.Button(u8"ГЋГІГ¬ГҐГ­Г ", imgui.ImVec2(210, 60)) and not POSITIONS.global_drag_active then
                     imgui.CloseCurrentPopup()
                 end
                 imgui.EndPopup()
@@ -2061,7 +2139,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
 end)
 
 -- ============================================================================
--- ОСНОВНАЯ ФУНКЦИЯ
+-- ГЋГ‘ГЌГЋГ‚ГЌГЂГџ Г”Г“ГЌГЉГ–Г€Гџ
 -- ============================================================================
 
 function main()
@@ -2075,7 +2153,7 @@ function main()
         UI.CentralGlMenu[0] = not UI.CentralGlMenu[0]
     end)
     
-    sampAddChatMessage("{00BFFF}[LMMR 1.8.2]{FFFFFF} Скрипт загружен. /cent", -1)
+    sampAddChatMessage("{00BFFF}[LMMR 1.8.2]{FFFFFF} Г‘ГЄГ°ГЁГЇГІ Г§Г ГЈГ°ГіГ¦ГҐГ­. /cent", -1)
     
     while true do
         wait(0)
