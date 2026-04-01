@@ -1,6 +1,6 @@
 script_name("LMMR")
 script_author("major")
-script_version("1.8.2")
+script_version("1.8.3")
 
 local imgui_status, imgui = pcall(require, 'mimgui')
 local encoding_status, encoding = pcall(require, 'encoding')
