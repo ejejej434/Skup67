@@ -798,13 +798,42 @@ end
 
 if sampev_status then
     function sampev.onReceivePacket(packetId, bs)
-        if packetId == 220 then
-            local parsed = readJsonFromBitStream(bs)
-            
-            if parsed and parsed.success and parsed.data then
-                local data = parsed.data
-                
-    scanInventory()
+        if packetId ~= 220 then
+            return
+        end
+
+        local parsed = readJsonFromBitStream(bs)
+        if not (parsed and parsed.success and parsed.data) then
+            return
+        end
+
+        local data = parsed.data
+        if not isInventoryData(data) then
+            return
+        end
+
+        local items = extractInventoryItems(data)
+        if type(items) ~= "table" then
+            return
+        end
+
+        session_inv = {}
+        for idx, item in ipairs(items) do
+            if type(item) == "table" then
+                table.insert(session_inv, {
+                    name = item.name or item.itemName or "Unknown",
+                    slot = tonumber(item.slot) or (idx - 1),
+                    count = tonumber(item.count or item.amount) or 1,
+                    item_id = tonumber(item.itemId or item.id) or 0,
+                    item_type = tonumber(item.type) or 1
+                })
+            end
+        end
+
+        STATE.waitingForInventory = false
+    end
+end
+
 local function executeInventorySale(slot, price, amount)
     local browserId = resolveBrowserId()
     if not browserId or not webviews_status or not lib or not lib.executeJS then
@@ -827,23 +856,30 @@ local function executeInventorySale(slot, price, amount)
 
     local ok = pcall(lib.executeJS, browserId, js)
     return ok
+end
 
-                addLog("  " .. item.slot .. " -   !")
+local function verifySlotItem(slot, expectedName)
+    local slotNum = tonumber(slot)
+    if not slotNum or #session_inv == 0 then
+        return true
+    end
 
-            local saleAmount, salePrice
-                salePrice = item.price
-                saleAmount = item.amount
-                saleAmount = item.amount
-                salePrice = item.price
+    local expected = ru_lower(tostring(expectedName or ""))
+    for _, invItem in ipairs(session_inv) do
+        if tonumber(invItem.slot) == slotNum then
+            if expected == "" then
+                return true
             end
-
-            local sold = executeInventorySale(item.slot, salePrice, saleAmount)
-            if not sold then
-                addLog("   " .. item.slot .. " - CEF WebView ")
-            end
+            local actual = ru_lower(tostring(invItem.name or ""))
+            return actual:find(expected, 1, true) ~= nil
         end
     end
+
     return false
+end
+
+function startInventoryScan()
+    scanInventory()
 end
 
 local function sendSlotSelectPacket(slot, itemType)
