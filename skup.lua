@@ -1,4 +1,4 @@
-script_name("LMMR")
+Ð·script_name("LMMR")
 script_author("major")
 script_version("1.8.2")
 
@@ -6,13 +6,14 @@ local imgui_status, imgui = pcall(require, 'mimgui')
 local encoding_status, encoding = pcall(require, 'encoding')
 local ffi = require('ffi')
 local sampev_status, sampev = pcall(require, 'samp.events')
+local webviews_status, lib = pcall(require, 'WebViews')
 local json = pcall(require, "json") and require("json") or {
     encode = encodeJson,
     decode = decodeJson
 }
 
 if not imgui_status then
-    print("Îøèáêà: mimgui íå óñòàíîâëåí!")
+    print("ÃŽÃ¸Ã¨Ã¡ÃªÃ : mimgui Ã­Ã¥ Ã³Ã±Ã²Ã Ã­Ã®Ã¢Ã«Ã¥Ã­!")
     return
 end
 
@@ -31,7 +32,7 @@ if not doesDirectoryExist(configDir) then
 end
 
 -- ============================================================================
--- ÓÒÈËÈÒÛ
+-- Ã“Ã’ÃˆÃ‹ÃˆÃ’Ã›
 -- ============================================================================
 
 local function ru_lower(str)
@@ -61,7 +62,8 @@ local function safe_copy(dest, src, max_len)
 end
 
 -- ============================================================================
--- ÑÎÑÒÎßÍÈÅ È ÏÅÐÅÌÅÍÍÛÅ
+    waitingForInventory = false,
+    browserId = nil
 -- ============================================================================
 
 local STATE = {
@@ -130,7 +132,9 @@ local storage = {
         btn_color = {0.14, 0.45, 0.90},
         btn_size = 55.0,
         global_delay = 1200,
-        menu_opacity = 1.0
+        menu_opacity = 1.0,
+        fps_boost = false,
+        auto_clean = false
     },
     items = {},
     sell_items = {},
@@ -170,11 +174,13 @@ local cBtn = imgui.new.float[3]({
 local btn_size = imgui.new.float(storage.settings.btn_size or 55.0)
 local global_delay = imgui.new.int(storage.settings.global_delay or 1200)
 local menu_opacity = imgui.new.float(storage.settings.menu_opacity or 1.0)
+local fps_boost = imgui.new.bool(storage.settings.fps_boost or false)
+local auto_clean = imgui.new.bool(storage.settings.auto_clean or false)
 
 local script_keys = (function() local _A={ {75,57,70,50,65,49,66,56,67,55,68,54,69,53,71,52}, {72,51,74,50,75,49,76,57,77,56,78,55,80,54,81,53}, {82,52,83,53,84,54,85,55,86,56,87,57,88,49,89,50}, {90,51,65,52,66,53,67,54,68,55,69,56,70,57,71,48}, {81,49,87,50,69,51,82,52,84,53,89,54,85,55,73,56}, {79,57,80,48,65,49,83,50,68,51,70,52,71,53,72,54}, {74,55,75,56,76,57,90,48,88,49,67,50,86,51,66,52}, {78,53,77,54,81,55,87,56,69,57,82,48,84,49,89,50}, {85,51,73,52,79,53,80,54,65,55,83,56,68,57,70,48}, {71,49,72,50,74,51,75,52,76,53,90,54,88,55,67,56} } local _B={} for _C=1,#_A do local _D="" for _E=1,#_A[_C] do _D=_D..string.char(_A[_C][_E]) end _B[_C]=_D end return _B end)()
 
 -- ============================================================================
--- ÐÀÁÎÒÀ Ñ ËÎÃÀÌÈ
+-- ÃÃ€ÃÃŽÃ’Ã€ Ã‘ Ã‹ÃŽÃƒÃ€ÃŒÃˆ
 -- ============================================================================
 
 function load_logs()
@@ -230,7 +236,7 @@ function addLog(text)
 end
 
 -- ============================================================================
--- ÎÁÐÀÁÎÒ×ÈÊÈ ÑÎÁÛÒÈÉ SAMP
+-- ÃŽÃÃÃ€ÃÃŽÃ’Ã—ÃˆÃŠÃˆ Ã‘ÃŽÃÃ›Ã’ÃˆÃ‰ SAMP
 -- ============================================================================
 
 if sampev_status then
@@ -243,7 +249,7 @@ if sampev_status then
 end
 
 -- ============================================================================
--- ÐÀÁÎÒÀ Ñ ÁÀÇÎÉ ÏÐÅÄÌÅÒÎÂ
+-- ÃÃ€ÃÃŽÃ’Ã€ Ã‘ ÃÃ€Ã‡ÃŽÃ‰ ÃÃÃ…Ã„ÃŒÃ…Ã’ÃŽÃ‚
 -- ============================================================================
 
 function load_item_db()
@@ -290,7 +296,7 @@ function save_item_db()
 end
 
 -- ============================================================================
--- ÀÂÒÎÑÊÀÍÈÐÎÂÀÍÈÅ ÁÀÇÛ ÏÐÅÄÌÅÒÎÂ
+-- Ã€Ã‚Ã’ÃŽÃ‘ÃŠÃ€ÃÃˆÃÃŽÃ‚Ã€ÃÃˆÃ… ÃÃ€Ã‡Ã› ÃÃÃ…Ã„ÃŒÃ…Ã’ÃŽÃ‚
 -- ============================================================================
 
 function runAutoScan()
@@ -329,12 +335,12 @@ function runAutoScan()
                 local rawName = cleanLine:match("^%s*([^\t]+)")
                 if rawName then
                     rawName = rawName:match("^%s*(.-)%s*$")
-                    if rawName == "Äàëåå" or rawName:find(">>>") or rawName:find("Ñëåäóþùàÿ") then
+                    if rawName == "Ã„Ã Ã«Ã¥Ã¥" or rawName:find(">>>") or rawName:find("Ã‘Ã«Ã¥Ã¤Ã³Ã¾Ã¹Ã Ã¿") then
                         nextPageIdx = i - 1
-                    elseif rawName ~= "Ïîèñê ïðåäìåòà ïî íàçâàíèþ / èíäåêñó"
-                        and rawName ~= "Ïîèñê ïî êàòåãîðèè / Âåñü ñïèñîê |"
-                        and rawName ~= "Íàçàä"
-                        and rawName ~= "Çàêðûòü" then
+                    elseif rawName ~= "ÃÃ®Ã¨Ã±Ãª Ã¯Ã°Ã¥Ã¤Ã¬Ã¥Ã²Ã  Ã¯Ã® Ã­Ã Ã§Ã¢Ã Ã­Ã¨Ã¾ / Ã¨Ã­Ã¤Ã¥ÃªÃ±Ã³"
+                        and rawName ~= "ÃÃ®Ã¨Ã±Ãª Ã¯Ã® ÃªÃ Ã²Ã¥Ã£Ã®Ã°Ã¨Ã¨ / Ã‚Ã¥Ã±Ã¼ Ã±Ã¯Ã¨Ã±Ã®Ãª |"
+                        and rawName ~= "ÃÃ Ã§Ã Ã¤"
+                        and rawName ~= "Ã‡Ã ÃªÃ°Ã»Ã²Ã¼" then
                         
                         local namePart, idPart = rawName:match("^(.-)%s*%[(%d+)%]$")
                         if not namePart then
@@ -385,40 +391,15 @@ function runAutoScan()
 end
 
 -- ============================================================================
--- ÑÎÕÐÀÍÅÍÈÅ È ÇÀÃÐÓÇÊÀ ÊÎÍÔÈÃÀ
--- ============================================================================
+            is_acc = v.is_acc[0]
+        })
+    end
 
-function save_main_json()
-    storage.items = {}
-    for _, v in ipairs(vars) do
-        table.insert(storage.items, {
-            name = u8:decode(ffi.string(v.name)),
-            id = u8:decode(ffi.string(v.id)),
-            price = u8:decode(ffi.string(v.price)),
-            amount = u8:decode(ffi.string(v.amount)),
-            active = v.active[0],
-            is_acc = v.is_acc[0]
-        })
-    end
-    
-    storage.sell_items = {}
-    for _, v in ipairs(sell_vars) do
-        table.insert(storage.sell_items, {
-            slot = v.slot,
-            item_name = v.item_name,
-            item_type = v.item_type,
-            price = u8:decode(ffi.string(v.price)),
-            amount = u8:decode(ffi.string(v.amount)),
-            active = v.active[0],
-            is_acc = v.is_acc[0]
-        })
-    end
-    
-    storage.settings.win_W = win_W[0]
-    storage.settings.win_H = win_H[0]
-    storage.settings.accent = {cAcc[0], cAcc[1], cAcc[2]}
-    storage.settings.background = {cBg[0], cBg[1], cBg[2]}
-    storage.settings.show_btn = show_screen_btn[0]
+    storage.settings.fps_boost = fps_boost[0]
+    storage.settings.auto_clean = auto_clean[0]
+
+            fps_boost[0] = storage.settings.fps_boost or false
+            auto_clean[0] = storage.settings.auto_clean or false
     storage.settings.btn_color = {cBtn[0], cBtn[1], cBtn[2]}
     storage.settings.btn_size = btn_size[0]
     storage.settings.global_delay = global_delay[0]
@@ -501,7 +482,7 @@ function load_main_json()
             for _, item in ipairs(storage.sell_items or {}) do
                 table.insert(sell_vars, {
                     slot = item.slot or 0,
-                    item_name = item.item_name or "Íåèçâåñòíî",
+                    item_name = item.item_name or "ÃÃ¥Ã¨Ã§Ã¢Ã¥Ã±Ã²Ã­Ã®",
                     item_type = item.item_type or 1,
                     price = imgui.new.char[64](string.sub(u8(item.price or "0"), 1, 63)),
                     amount = imgui.new.char[64](string.sub(u8(item.amount or "1"), 1, 63)),
@@ -516,7 +497,7 @@ function load_main_json()
 end
 
 -- ============================================================================
--- ÏÐÎÖÅÑÑ ÀÂÒÎ-ÇÀÊÓÏÊÈ
+-- ÃÃÃŽÃ–Ã…Ã‘Ã‘ Ã€Ã‚Ã’ÃŽ-Ã‡Ã€ÃŠÃ“ÃÃŠÃˆ
 -- ============================================================================
 
 function runBuyingProcess()
@@ -571,16 +552,99 @@ function runBuyingProcess()
 end
 
 -- ============================================================================
--- ÑÊÀÍÈÐÎÂÀÍÈÅ ÈÍÂÅÍÒÀÐß
+local function resolveBrowserId()
+    if STATE.browserId then
+        return STATE.browserId
+    end
+    if not webviews_status or not lib then
+        return nil
+    end
+
+    local candidates = {
+        function() return lib.getBrowserId and lib.getBrowserId() end,
+        function() return lib.getActiveBrowser and lib.getActiveBrowser() end,
+        function() return lib.getCurrentBrowser and lib.getCurrentBrowser() end,
+        function() return lib.getFocusedBrowser and lib.getFocusedBrowser() end
+    }
+
+    for _, fn in ipairs(candidates) do
+        local ok, id = pcall(fn)
+        if ok and id then
+            STATE.browserId = tonumber(id) or id
+            return STATE.browserId
+        end
+    end
+
+    return nil
+end
+
+local function parseInventoryJson(jsonStr)
+    if not jsonStr or jsonStr == '' then
+        return {}
+    end
+
+    local ok, decoded = pcall(json.decode, jsonStr)
+    if not ok or type(decoded) ~= 'table' then
+        return {}
+    end
+
+    local items = decoded.items or decoded.inventory or decoded.bag or decoded.slots or decoded
+    local out = {}
+    if type(items) == 'table' then
+        for idx, item in ipairs(items) do
+            if type(item) == 'table' then
+                table.insert(out, {
+                    name = item.name or item.itemName or 'Unknown',
+                    slot = tonumber(item.slot) or (idx - 1),
+                    count = tonumber(item.count or item.amount) or 1,
+                    item_id = tonumber(item.itemId or item.id) or 0
+                })
+            end
+        end
+    end
+    return out
+end
+
+function scanInventory()
+    if STATE.isScanning then return end
+
+    STATE.isScanning = true
+    lua_thread.create(function()
+        session_inv = {}
+        local browserId = resolveBrowserId()
+        if browserId and webviews_status and lib and lib.getJSValue then
+            local ok, payload = pcall(lib.getJSValue, browserId, "JSON.stringify(window.inventory && window.inventory.items ? window.inventory.items : [])")
+            if ok and payload and payload ~= '' and payload ~= 'null' then
+                session_inv = parseInventoryJson(payload)
+            end
+        end
+
+        if #session_inv == 0 then
+            STATE.waitingForInventory = true
+            local timeout = 50
+            while STATE.waitingForInventory and timeout > 0 do
+                wait(100)
+                timeout = timeout - 1
+            end
+            if timeout <= 0 then
+                STATE.waitingForInventory = false
+            end
+        end
+
+        STATE.isScanning = false
+    end)
+end
+
+-- Ã‘ÃŠÃ€ÃÃˆÃÃŽÃ‚Ã€ÃÃˆÃ… ÃˆÃÃ‚Ã…ÃÃ’Ã€ÃÃŸ
 -- ============================================================================
 
 local function readJsonFromBitStream(bs)
-    -- ÊÐÈÒÈ×ÅÑÊÈ ÂÀÆÍÎ: ñîõðàíÿåì òåêóùèé îôôñåò
+    -- ÃŠÃÃˆÃ’ÃˆÃ—Ã…Ã‘ÃŠÃˆ Ã‚Ã€Ã†ÃÃŽ: Ã±Ã®ÃµÃ°Ã Ã­Ã¿Ã¥Ã¬ Ã²Ã¥ÃªÃ³Ã¹Ã¨Ã© Ã®Ã´Ã´Ã±Ã¥Ã²
     local currentOffset = raknetBitStreamGetReadOffset(bs)
     
-    -- Îáðàáîòêà ñ çàùèòîé óêàçàòåëÿ
+    -- ÃŽÃ¡Ã°Ã Ã¡Ã®Ã²ÃªÃ  Ã± Ã§Ã Ã¹Ã¨Ã²Ã®Ã© Ã³ÃªÃ Ã§Ã Ã²Ã¥Ã«Ã¿
     local function safeReturn(success, data, errorMsg)
-        -- ÂÑÅÃÄÀ âîçâðàùàåì óêàçàòåëü íà ìåñòî ïåðåä âûõîäîì
+        -- Ã‚Ã‘Ã…ÃƒÃ„Ã€ Ã¢Ã®Ã§Ã¢Ã°Ã Ã¹Ã Ã¥Ã¬ Ã³ÃªÃ Ã§Ã Ã²Ã¥Ã«Ã¼ Ã­Ã  Ã¬Ã¥Ã±Ã²Ã® Ã¯Ã¥Ã°Ã¥Ã¤ Ã¢Ã»ÃµÃ®Ã¤Ã®Ã¬
         raknetBitStreamSetReadOffset(bs, currentOffset)
         
         if success then
@@ -590,7 +654,7 @@ local function readJsonFromBitStream(bs)
         end
     end
     
-    -- ×èòàåì çàãîëîâîê (2 áàéòà)
+    -- Ã—Ã¨Ã²Ã Ã¥Ã¬ Ã§Ã Ã£Ã®Ã«Ã®Ã¢Ã®Ãª (2 Ã¡Ã Ã©Ã²Ã )
     local header1 = raknetBitStreamReadInt8(bs)
     if not header1 then
         return safeReturn(false, nil, "Failed to read header1")
@@ -601,25 +665,25 @@ local function readJsonFromBitStream(bs)
         return safeReturn(false, nil, "Failed to read header2")
     end
     
-    -- ×èòàåì äëèíó JSON êàê 32-áèòíîå ÷èñëî
+    -- Ã—Ã¨Ã²Ã Ã¥Ã¬ Ã¤Ã«Ã¨Ã­Ã³ JSON ÃªÃ Ãª 32-Ã¡Ã¨Ã²Ã­Ã®Ã¥ Ã·Ã¨Ã±Ã«Ã®
     local dataLen = raknetBitStreamReadInt32(bs)
     if not dataLen or dataLen <= 0 or dataLen > 65535 then
         return safeReturn(false, nil, "Invalid data length: " .. tostring(dataLen))
     end
     
-    -- ×èòàåì JSON ñòðîêó ÖÅËÈÊÎÌ (ÍÅ ïîáàéòîâî!)
+    -- Ã—Ã¨Ã²Ã Ã¥Ã¬ JSON Ã±Ã²Ã°Ã®ÃªÃ³ Ã–Ã…Ã‹ÃˆÃŠÃŽÃŒ (ÃÃ… Ã¯Ã®Ã¡Ã Ã©Ã²Ã®Ã¢Ã®!)
     local jsonStr = raknetBitStreamReadString(bs, dataLen)
     if not jsonStr or jsonStr == "" then
         return safeReturn(false, nil, "Failed to read JSON string")
     end
     
-    -- Äåêîäèðóåì JSON
+    -- Ã„Ã¥ÃªÃ®Ã¤Ã¨Ã°Ã³Ã¥Ã¬ JSON
     local status, decoded = pcall(json.decode, jsonStr)
     if not status or not decoded then
         return safeReturn(false, nil, "JSON decode failed: " .. tostring(decoded))
     end
     
-    -- Óñïåøíûé âîçâðàò (óêàçàòåëü âñå ðàâíî âîññòàíàâëèâàåòñÿ)
+    -- Ã“Ã±Ã¯Ã¥Ã¸Ã­Ã»Ã© Ã¢Ã®Ã§Ã¢Ã°Ã Ã² (Ã³ÃªÃ Ã§Ã Ã²Ã¥Ã«Ã¼ Ã¢Ã±Ã¥ Ã°Ã Ã¢Ã­Ã® Ã¢Ã®Ã±Ã±Ã²Ã Ã­Ã Ã¢Ã«Ã¨Ã¢Ã Ã¥Ã²Ã±Ã¿)
     return safeReturn(true, decoded, nil)
 end
 
@@ -628,7 +692,7 @@ local function isInventoryData(data)
         return false
     end
     
-    -- Ïðîâåðÿåì êëþ÷è èíâåíòàðÿ
+    -- ÃÃ°Ã®Ã¢Ã¥Ã°Ã¿Ã¥Ã¬ ÃªÃ«Ã¾Ã·Ã¨ Ã¨Ã­Ã¢Ã¥Ã­Ã²Ã Ã°Ã¿
     if data.items and type(data.items) == "table" then
         return true
     end
@@ -642,7 +706,7 @@ local function isInventoryData(data)
         return true
     end
     
-    -- Ïðîâåðÿåì action äëÿ èíâåíòàðÿ
+    -- ÃÃ°Ã®Ã¢Ã¥Ã°Ã¿Ã¥Ã¬ action Ã¤Ã«Ã¿ Ã¨Ã­Ã¢Ã¥Ã­Ã²Ã Ã°Ã¿
     if data.action then
         local invActions = {16, 17, 18, 19, 20, 21, 22}
         for _, act in ipairs(invActions) do
@@ -660,27 +724,27 @@ local function extractInventoryItems(data)
         return nil
     end
     
-    -- Âàðèàíò 1: data.items
+    -- Ã‚Ã Ã°Ã¨Ã Ã­Ã² 1: data.items
     if data.items and type(data.items) == "table" then
         return data.items
     end
     
-    -- Âàðèàíò 2: data.inventory
+    -- Ã‚Ã Ã°Ã¨Ã Ã­Ã² 2: data.inventory
     if data.inventory and type(data.inventory) == "table" then
         return data.inventory
     end
     
-    -- Âàðèàíò 3: data.bag
+    -- Ã‚Ã Ã°Ã¨Ã Ã­Ã² 3: data.bag
     if data.bag and type(data.bag) == "table" then
         return data.bag
     end
     
-    -- Âàðèàíò 4: data.slots
+    -- Ã‚Ã Ã°Ã¨Ã Ã­Ã² 4: data.slots
     if data.slots and type(data.slots) == "table" then
         return data.slots
     end
     
-    -- Âàðèàíò 5: ñàì data ÿâëÿåòñÿ ìàññèâîì
+    -- Ã‚Ã Ã°Ã¨Ã Ã­Ã² 5: Ã±Ã Ã¬ data Ã¿Ã¢Ã«Ã¿Ã¥Ã²Ã±Ã¿ Ã¬Ã Ã±Ã±Ã¨Ã¢Ã®Ã¬
     if data[1] and type(data[1]) == "table" then
         return data
     end
@@ -696,75 +760,42 @@ if sampev_status then
             if parsed and parsed.success and parsed.data then
                 local data = parsed.data
                 
-                -- Ïðîâåðÿåì: æäåì ëè ìû äàííûå èíâåíòàðÿ È ýòî äåéñòâèòåëüíî èíâåíòàðü
-                if STATE.waitingForInventory and isInventoryData(data) then
-                    local itemsArray = extractInventoryItems(data)
-                    
-                    -- Åñëè íàøëè ìàññèâ ïðåäìåòîâ - ïàðñèì â session_inv
-                    if itemsArray and type(itemsArray) == "table" then
-                        session_inv = {}
-                        
-                        for idx, item in ipairs(itemsArray) do
-                            if type(item) == "table" then
-                                local slot = item.slot or (idx - 1)
-                                local name = item.name or item.itemName or "Íåèçâåñòíî"
-                                local itemType = item.type or item.itemType or 1
-                                local count = item.count or item.amount or 1
-                                local itemId = item.itemId or item.id or 0
-                                
-                                table.insert(session_inv, {
-                                    slot = slot,
-                                    name = name,
-                                    item_type = itemType,
-                                    count = count,
-                                    item_id = itemId
-                                })
-                            end
-                        end
-                        
-                        STATE.waitingForInventory = false
-                        return false  -- Ñêðûâàåì îêíî èíâåíòàðÿ
-                    end
-                end
-            end
-        end
-        
-        return true
+    scanInventory()
+local function executeInventorySale(slot, price, amount)
+    local browserId = resolveBrowserId()
+    if not browserId or not webviews_status or not lib or not lib.executeJS then
+        return false
     end
-end
 
-function startInventoryScan()
-    lua_thread.create(function()
-        session_inv = {}
-        STATE.waitingForInventory = true
-        
-        wait(100)
-        sampSendChat("/invent")
-        
-        -- Æäåì äàííûå (ìàêñ 5 ñåê)
-        local timeout = 50
-        while STATE.waitingForInventory and timeout > 0 do
-            wait(100)
-            timeout = timeout - 1
-        end
-        
-        if timeout <= 0 then
-            STATE.waitingForInventory = false
-        end
-    end)
-end
+    local js = string.format([[;(function(){
+        var slotId = %d;
+        var price = %s;
+        var amount = %s;
+        if (window.inventory && inventory.selectSlot) {
+            inventory.selectSlot(slotId);
+        }
+        if (window.inventory && inventory.confirmSale) {
+            inventory.confirmSale(slotId, price, amount);
+            return true;
+        }
+        return false;
+    })();]], tonumber(slot) or 0, tostring(tonumber(price) or 0), tostring(tonumber(amount) or 1))
 
--- ============================================================================
--- ÏÐÎÖÅÑÑ ÀÂÒÎ-ÏÐÎÄÀÆÈ
--- ============================================================================
+    local ok = pcall(lib.executeJS, browserId, js)
+    return ok
 
-local function verifySlotItem(slot, expectedName)
-    for _, item in ipairs(session_inv) do
-        if item.slot == slot then
-            if item.name == expectedName then
-                return true
-            else
-                return false
+                addLog("  " .. item.slot .. " -   !")
+
+            local saleAmount, salePrice
+                salePrice = item.price
+                saleAmount = item.amount
+                saleAmount = item.amount
+                salePrice = item.price
+            end
+
+            local sold = executeInventorySale(item.slot, salePrice, saleAmount)
+            if not sold then
+                addLog("   " .. item.slot .. " - CEF WebView ")
             end
         end
     end
@@ -782,14 +813,14 @@ local function sendSlotSelectPacket(slot, itemType)
             }
             local jsonStr = json.encode(jsonData)
             
-            -- Çàãîëîâîê ïàêåòà
+            -- Ã‡Ã Ã£Ã®Ã«Ã®Ã¢Ã®Ãª Ã¯Ã ÃªÃ¥Ã²Ã 
             raknetBitStreamWriteInt8(bs, 0x3F)  -- 63
             raknetBitStreamWriteInt8(bs, 0x34)  -- '4'
             
-            -- Äëèíà JSON êàê 32-áèòíîå ÷èñëî
+            -- Ã„Ã«Ã¨Ã­Ã  JSON ÃªÃ Ãª 32-Ã¡Ã¨Ã²Ã­Ã®Ã¥ Ã·Ã¨Ã±Ã«Ã®
             raknetBitStreamWriteInt32(bs, #jsonStr)
             
-            -- JSON ñòðîêà öåëèêîì
+            -- JSON Ã±Ã²Ã°Ã®ÃªÃ  Ã¶Ã¥Ã«Ã¨ÃªÃ®Ã¬
             raknetBitStreamWriteString(bs, jsonStr)
             
             raknetSendBitStreamEx(bs, 2, 8, 0, false)
@@ -823,23 +854,23 @@ function runSellingProcess()
         for i, item in ipairs(sell_queue) do
             if STATE.stopProcess then break end
             
-            -- Ïðîâåðêà ñëîòà ïåðåä ïðîäàæåé
+            -- ÃÃ°Ã®Ã¢Ã¥Ã°ÃªÃ  Ã±Ã«Ã®Ã²Ã  Ã¯Ã¥Ã°Ã¥Ã¤ Ã¯Ã°Ã®Ã¤Ã Ã¦Ã¥Ã©
             if not verifySlotItem(item.slot, item.item_name) then
-                addLog("Ïðîïóùåí ñëîò " .. item.slot .. " - ïðåäìåò íå ñîâïàäàåò!")
+                addLog("ÃÃ°Ã®Ã¯Ã³Ã¹Ã¥Ã­ Ã±Ã«Ã®Ã² " .. item.slot .. " - Ã¯Ã°Ã¥Ã¤Ã¬Ã¥Ã² Ã­Ã¥ Ã±Ã®Ã¢Ã¯Ã Ã¤Ã Ã¥Ã²!")
                 goto continue
             end
             
-            -- Øàã 1: Îòêðûâàåì ìåíþ "Ïðîäàæà"
+            -- Ã˜Ã Ã£ 1: ÃŽÃ²ÃªÃ°Ã»Ã¢Ã Ã¥Ã¬ Ã¬Ã¥Ã­Ã¾ "ÃÃ°Ã®Ã¤Ã Ã¦Ã "
             sampSendDialogResponse(9, 1, 0, "")
             wait(global_delay[0])
             if STATE.stopProcess then break end
             
-            -- Øàã 2: Îòïðàâëÿåì ïàêåò âûáîðà ñëîòà
+            -- Ã˜Ã Ã£ 2: ÃŽÃ²Ã¯Ã°Ã Ã¢Ã«Ã¿Ã¥Ã¬ Ã¯Ã ÃªÃ¥Ã² Ã¢Ã»Ã¡Ã®Ã°Ã  Ã±Ã«Ã®Ã²Ã 
             sendSlotSelectPacket(item.slot, item.item_type)
             wait(global_delay[0] + 300)
             if STATE.stopProcess then break end
             
-            -- Øàã 3: Çàïîëíÿåì öåíó è êîëè÷åñòâî
+            -- Ã˜Ã Ã£ 3: Ã‡Ã Ã¯Ã®Ã«Ã­Ã¿Ã¥Ã¬ Ã¶Ã¥Ã­Ã³ Ã¨ ÃªÃ®Ã«Ã¨Ã·Ã¥Ã±Ã²Ã¢Ã®
             local send_data = ""
             if item.is_acc then
                 send_data = item.price .. "," .. item.amount
@@ -857,7 +888,7 @@ function runSellingProcess()
 end
 
 -- ============================================================================
--- ÈÍÒÅÐÔÅÉÑ ImGui
+-- ÃˆÃÃ’Ã…ÃÃ”Ã…Ã‰Ã‘ ImGui
 -- ============================================================================
 
 imgui.OnInitialize(function()
@@ -881,7 +912,7 @@ local function renderTab1()
     imgui.BeginChild("DB_Area", imgui.ImVec2(halfW, -1), true)
     imgui.PushItemWidth(-1)
     
-    local q_changed = imgui.InputTextWithHint("##srch", u8"Ïîèñê...", BUFFERS.search, 256)
+    local q_changed = imgui.InputTextWithHint("##srch", u8"ÃÃ®Ã¨Ã±Ãª...", BUFFERS.search, 256)
     imgui.PopItemWidth()
     
     if q_changed or last_search == nil then
@@ -947,7 +978,7 @@ local function renderTab1()
     imgui.SameLine()
     
     imgui.BeginChild("Queue_Area", imgui.ImVec2(halfW, -1), true)
-    if imgui.Button(STATE.isRunning and u8"Îñòàíîâèòü" or u8"Çàïóñòèòü ñêóï", imgui.ImVec2(-1, 55)) and not POSITIONS.global_drag_active then
+    if imgui.Button(STATE.isRunning and u8"ÃŽÃ±Ã²Ã Ã­Ã®Ã¢Ã¨Ã²Ã¼" or u8"Ã‡Ã Ã¯Ã³Ã±Ã²Ã¨Ã²Ã¼ Ã±ÃªÃ³Ã¯", imgui.ImVec2(-1, 55)) and not POSITIONS.global_drag_active then
         lua_thread.create(function()
             wait(0)
             if STATE.isRunning then
@@ -976,7 +1007,7 @@ local function renderTab1()
         local idStr = item.str_id ~= "" and (" [ID: " .. item.str_id .. "]") or ""
         imgui.Text(item.str_name .. idStr)
         
-        local label_amt = item.is_acc[0] and u8"Öâåò: " or u8"Êîë: "
+        local label_amt = item.is_acc[0] and u8"Ã–Ã¢Ã¥Ã²: " or u8"ÃŠÃ®Ã«: "
         imgui.TextDisabled(item.str_price .. u8" $ | " .. label_amt .. item.str_amount)
         imgui.EndGroup()
         
@@ -1029,7 +1060,7 @@ local function renderTab2()
             end
         end
     else
-        imgui.TextDisabled(u8"Ïóñòî")
+        imgui.TextDisabled(u8"ÃÃ³Ã±Ã²Ã®")
     end
     if imgui.IsWindowHovered(33) and imgui.IsMouseDragging(0, 0.0) then
         imgui.SetScrollY(imgui.GetScrollY() - imgui.GetIO().MouseDelta.y)
@@ -1043,7 +1074,7 @@ local function renderTab2()
         imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.8, 0.2, 0.2, 0.8))
         imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.9, 0.3, 0.3, 1.0))
         imgui.PushStyleColor(imgui.Col.ButtonActive, imgui.ImVec4(0.7, 0.1, 0.1, 1.0))
-        if imgui.Button(u8"Óäàëèòü ëîãè çà " .. selected_date, imgui.ImVec2(-1, 35)) and not POSITIONS.global_drag_active then
+        if imgui.Button(u8"Ã“Ã¤Ã Ã«Ã¨Ã²Ã¼ Ã«Ã®Ã£Ã¨ Ã§Ã  " .. selected_date, imgui.ImVec2(-1, 35)) and not POSITIONS.global_drag_active then
             lua_thread.create(function()
                 wait(0)
                 logs[selected_date] = nil
@@ -1063,7 +1094,7 @@ local function renderTab2()
         end
         imgui.EndChild()
     else
-        imgui.TextDisabled(u8"Íåò çàïèñåé.")
+        imgui.TextDisabled(u8"ÃÃ¥Ã² Ã§Ã Ã¯Ã¨Ã±Ã¥Ã©.")
     end
     imgui.EndChild()
 end
@@ -1071,18 +1102,18 @@ end
 local function renderTab3()
     imgui.SetCursorPos(imgui.ImVec2(40, 40))
     imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1), "LMMR")
-    imgui.Text(u8"Áàçà äàííûõ: " .. #item_db .. u8" ïðåäìåòîâ")
-    imgui.Text(u8"Èíâåíòàðü (ñåññèÿ): " .. #session_inv .. u8" ïðåäìåòîâ")
+    imgui.Text(u8"ÃÃ Ã§Ã  Ã¤Ã Ã­Ã­Ã»Ãµ: " .. #item_db .. u8" Ã¯Ã°Ã¥Ã¤Ã¬Ã¥Ã²Ã®Ã¢")
+    imgui.Text(u8"ÃˆÃ­Ã¢Ã¥Ã­Ã²Ã Ã°Ã¼ (Ã±Ã¥Ã±Ã±Ã¨Ã¿): " .. #session_inv .. u8" Ã¯Ã°Ã¥Ã¤Ã¬Ã¥Ã²Ã®Ã¢")
     imgui.Spacing()
-    imgui.TextDisabled(u8"Âåðñèÿ: 1.8.2")
+    imgui.TextDisabled(u8"Ã‚Ã¥Ã°Ã±Ã¨Ã¿: 1.8.2")
 end
 
 local function renderTab4()
     imgui.BeginChild("SettingsScroll", imgui.ImVec2(-1, -85))
     
-    imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1), u8"ÁÀÇÀ ÏÐÅÄÌÅÒÎÂ (ÀÂÒÎÑÊÀÍ)")
-    imgui.TextWrapped(u8"Îòêðîéòå äèàëîã 'Ñêóïêà: 1/132 (Âåñü ñïèñîê)' â ëàâêå è íàæìèòå êíîïêó. Ñêðèïò ñàì ïðîëèñòàåò âñå ñòðàíèöû è çàïèøåò íàçâàíèÿ ñ ID.")
-    local scanBtnText = STATE.isScanning and u8"ÎÑÒÀÍÎÂÈÒÜ ÑÊÀÍÈÐÎÂÀÍÈÅ" or u8"ÎÒÑÊÀÍÈÐÎÂÀÒÜ ÏÐÅÄÌÅÒÛ"
+    imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1), u8"ÃÃ€Ã‡Ã€ ÃÃÃ…Ã„ÃŒÃ…Ã’ÃŽÃ‚ (Ã€Ã‚Ã’ÃŽÃ‘ÃŠÃ€Ã)")
+    imgui.TextWrapped(u8"ÃŽÃ²ÃªÃ°Ã®Ã©Ã²Ã¥ Ã¤Ã¨Ã Ã«Ã®Ã£ 'Ã‘ÃªÃ³Ã¯ÃªÃ : 1/132 (Ã‚Ã¥Ã±Ã¼ Ã±Ã¯Ã¨Ã±Ã®Ãª)' Ã¢ Ã«Ã Ã¢ÃªÃ¥ Ã¨ Ã­Ã Ã¦Ã¬Ã¨Ã²Ã¥ ÃªÃ­Ã®Ã¯ÃªÃ³. Ã‘ÃªÃ°Ã¨Ã¯Ã² Ã±Ã Ã¬ Ã¯Ã°Ã®Ã«Ã¨Ã±Ã²Ã Ã¥Ã² Ã¢Ã±Ã¥ Ã±Ã²Ã°Ã Ã­Ã¨Ã¶Ã» Ã¨ Ã§Ã Ã¯Ã¨Ã¸Ã¥Ã² Ã­Ã Ã§Ã¢Ã Ã­Ã¨Ã¿ Ã± ID.")
+    local scanBtnText = STATE.isScanning and u8"ÃŽÃ‘Ã’Ã€ÃÃŽÃ‚ÃˆÃ’Ãœ Ã‘ÃŠÃ€ÃÃˆÃÃŽÃ‚Ã€ÃÃˆÃ…" or u8"ÃŽÃ’Ã‘ÃŠÃ€ÃÃˆÃÃŽÃ‚Ã€Ã’Ãœ ÃÃÃ…Ã„ÃŒÃ…Ã’Ã›"
     if imgui.Button(scanBtnText, imgui.ImVec2(-1, 55)) and not POSITIONS.global_drag_active then
         lua_thread.create(function()
             wait(0)
@@ -1101,12 +1132,12 @@ local function renderTab4()
     local resX = imgui.GetIO().DisplaySize.x
     local resY = imgui.GetIO().DisplaySize.y
     
-    imgui.Text(u8"Íàñòðîéêè îêíà è çàäåðæêè:")
+    imgui.Text(u8"ÃÃ Ã±Ã²Ã°Ã®Ã©ÃªÃ¨ Ã®ÃªÃ­Ã  Ã¨ Ã§Ã Ã¤Ã¥Ã°Ã¦ÃªÃ¨:")
     imgui.PushItemWidth(350)
     
     local max_w = tonumber(resX) and math.min(2560, resX) or 2560
     local temp_w = imgui.new.int(win_W[0])
-    if imgui.SliderInt(u8"Øèðèíà", temp_w, 750, max_w) then
+    if imgui.SliderInt(u8"Ã˜Ã¨Ã°Ã¨Ã­Ã ", temp_w, 750, max_w) then
         win_W[0] = temp_w[0]
     end
     if imgui.IsItemDeactivatedAfterEdit() then 
@@ -1118,7 +1149,7 @@ local function renderTab4()
     
     local max_h = tonumber(resY) and math.min(1080, resY) or 1080
     local temp_h = imgui.new.int(win_H[0])
-    if imgui.SliderInt(u8"Âûñîòà", temp_h, 450, max_h) then
+    if imgui.SliderInt(u8"Ã‚Ã»Ã±Ã®Ã²Ã ", temp_h, 450, max_h) then
         win_H[0] = temp_h[0]
     end
     if imgui.IsItemDeactivatedAfterEdit() then 
@@ -1128,7 +1159,7 @@ local function renderTab4()
         end)
     end
     
-    imgui.SliderInt(u8"Çàäåðæêà (ìñ)", global_delay, 500, 3000)
+    imgui.SliderInt(u8"Ã‡Ã Ã¤Ã¥Ã°Ã¦ÃªÃ  (Ã¬Ã±)", global_delay, 500, 3000)
     if imgui.IsItemDeactivatedAfterEdit() then 
         lua_thread.create(function()
             wait(0)
@@ -1136,7 +1167,7 @@ local function renderTab4()
         end)
     end
     
-    imgui.SliderFloat(u8"Ïðîçðà÷íîñòü ôîíà", menu_opacity, 0.2, 1.0, "%.2f")
+    imgui.SliderFloat(u8"ÃÃ°Ã®Ã§Ã°Ã Ã·Ã­Ã®Ã±Ã²Ã¼ Ã´Ã®Ã­Ã ", menu_opacity, 0.2, 1.0, "%.2f")
     if imgui.IsItemDeactivatedAfterEdit() then 
         lua_thread.create(function()
             wait(0)
@@ -1147,15 +1178,22 @@ local function renderTab4()
     imgui.PopItemWidth()
     
     imgui.Spacing()
-    imgui.Text(u8"Íàñòðîéêè ïëàâàþùåé êíîïêè:")
-    if imgui.Checkbox(u8"Ïîêàçûâàòü êíîïêó íà ýêðàíå", show_screen_btn) then
+
+    if imgui.Checkbox(u8"FPS boost", fps_boost) then
+        save_main_json()
+    end
+    if imgui.Checkbox(u8"Auto-clean", auto_clean) then
+        save_main_json()
+    end
+
+    if imgui.Checkbox(u8"ÃÃ®ÃªÃ Ã§Ã»Ã¢Ã Ã²Ã¼ ÃªÃ­Ã®Ã¯ÃªÃ³ Ã­Ã  Ã½ÃªÃ°Ã Ã­Ã¥", show_screen_btn) then
         lua_thread.create(function()
             wait(0)
             save_main_json()
         end)
     end
     imgui.PushItemWidth(350)
-    imgui.SliderFloat(u8"Ðàçìåð êíîïêè", btn_size, 30.0, 150.0)
+    imgui.SliderFloat(u8"ÃÃ Ã§Ã¬Ã¥Ã° ÃªÃ­Ã®Ã¯ÃªÃ¨", btn_size, 30.0, 150.0)
     if imgui.IsItemDeactivatedAfterEdit() then 
         lua_thread.create(function()
             wait(0)
@@ -1165,7 +1203,7 @@ local function renderTab4()
     imgui.PopItemWidth()
     
     imgui.Spacing()
-    imgui.Text(u8"Öâåòà èíòåðôåéñà")
+    imgui.Text(u8"Ã–Ã¢Ã¥Ã²Ã  Ã¨Ã­Ã²Ã¥Ã°Ã´Ã¥Ã©Ã±Ã ")
     
     imgui.Text("R: " .. math.floor(cAcc[0]*255))
     imgui.SameLine(80)
@@ -1177,7 +1215,7 @@ local function renderTab4()
         imgui.OpenPopup("PickerAcc")
     end
     imgui.SameLine()
-    imgui.Text(u8"Àêöåíò")
+    imgui.Text(u8"Ã€ÃªÃ¶Ã¥Ã­Ã²")
     if imgui.BeginPopup("PickerAcc") then
         imgui.ColorPicker3("##p1", cAcc)
         save_main_json()
@@ -1195,7 +1233,7 @@ local function renderTab4()
         imgui.OpenPopup("PickerBg")
     end
     imgui.SameLine()
-    imgui.Text(u8"Ôîí")
+    imgui.Text(u8"Ã”Ã®Ã­")
     if imgui.BeginPopup("PickerBg") then
         imgui.ColorPicker3("##p2", cBg)
         save_main_json()
@@ -1213,7 +1251,7 @@ local function renderTab4()
         imgui.OpenPopup("PickerBtn")
     end
     imgui.SameLine()
-    imgui.Text(u8"Öâåò êíîïêè")
+    imgui.Text(u8"Ã–Ã¢Ã¥Ã² ÃªÃ­Ã®Ã¯ÃªÃ¨")
     if imgui.BeginPopup("PickerBtn") then
         imgui.ColorPicker3("##p3", cBtn)
         save_main_json()
@@ -1226,7 +1264,7 @@ local function renderTab4()
     imgui.EndChild()
     
     imgui.SetCursorPosY(imgui.GetWindowHeight() - 75)
-    if imgui.Button(u8"Ñîõðàíèòü", imgui.ImVec2(-1, 55)) and not POSITIONS.global_drag_active then
+    if imgui.Button(u8"Ã‘Ã®ÃµÃ°Ã Ã­Ã¨Ã²Ã¼", imgui.ImVec2(-1, 55)) and not POSITIONS.global_drag_active then
         lua_thread.create(function()
             wait(0)
             save_main_json()
@@ -1237,18 +1275,18 @@ end
 local function renderTab5()
     imgui.BeginChild("ProfilesArea", imgui.ImVec2(-1, -1), true)
     imgui.SetCursorPos(imgui.ImVec2(20, 20))
-    imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"Íàñòðîéêà êîíôèãîâ")
+    imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"ÃÃ Ã±Ã²Ã°Ã®Ã©ÃªÃ  ÃªÃ®Ã­Ã´Ã¨Ã£Ã®Ã¢")
     imgui.Separator()
     imgui.Spacing()
     
     imgui.SetCursorPosX(20)
-    imgui.Text(u8"Íàçâàíèå íîâîãî êîíôèãà:")
+    imgui.Text(u8"ÃÃ Ã§Ã¢Ã Ã­Ã¨Ã¥ Ã­Ã®Ã¢Ã®Ã£Ã® ÃªÃ®Ã­Ã´Ã¨Ã£Ã :")
     imgui.SetCursorPosX(20)
     imgui.PushItemWidth(300)
     imgui.InputText("##prof_name", BUFFERS.profileName, 256)
     imgui.PopItemWidth()
     imgui.SameLine()
-    if imgui.Button(u8"Ñîõðàíèòü êîíôèã", imgui.ImVec2(200, 35)) and not POSITIONS.global_drag_active then
+    if imgui.Button(u8"Ã‘Ã®ÃµÃ°Ã Ã­Ã¨Ã²Ã¼ ÃªÃ®Ã­Ã´Ã¨Ã£", imgui.ImVec2(200, 35)) and not POSITIONS.global_drag_active then
         lua_thread.create(function()
             wait(0)
             local pName = u8:decode(ffi.string(BUFFERS.profileName))
@@ -1272,7 +1310,7 @@ local function renderTab5()
     
     imgui.Spacing()
     imgui.SetCursorPosX(20)
-    imgui.Text(u8"Âàøè ñîõðàíåííûå êîíôèãè:")
+    imgui.Text(u8"Ã‚Ã Ã¸Ã¨ Ã±Ã®ÃµÃ°Ã Ã­Ã¥Ã­Ã­Ã»Ã¥ ÃªÃ®Ã­Ã´Ã¨Ã£Ã¨:")
     imgui.SetCursorPosX(20)
     imgui.BeginChild("ProfList", imgui.ImVec2(-20, -15), true)
     
@@ -1280,10 +1318,10 @@ local function renderTab5()
     for pName, pItems in pairs(storage.profiles) do
         has_profiles = true
         imgui.SetCursorPosX(15)
-        imgui.Text(u8(pName) .. " (" .. #pItems .. u8" ïðåäìåòîâ)")
+        imgui.Text(u8(pName) .. " (" .. #pItems .. u8" Ã¯Ã°Ã¥Ã¤Ã¬Ã¥Ã²Ã®Ã¢)")
         
         imgui.SameLine(imgui.GetWindowWidth() - 250)
-        if imgui.Button(u8"Çàãðóçèòü##ld" .. pName, imgui.ImVec2(100, 35)) and not POSITIONS.global_drag_active then
+        if imgui.Button(u8"Ã‡Ã Ã£Ã°Ã³Ã§Ã¨Ã²Ã¼##ld" .. pName, imgui.ImVec2(100, 35)) and not POSITIONS.global_drag_active then
             lua_thread.create(function()
                 wait(0)
                 vars = {}
@@ -1306,7 +1344,7 @@ local function renderTab5()
         end
         
         imgui.SameLine()
-        if imgui.Button(u8"Óäàëèòü##dl" .. pName, imgui.ImVec2(100, 35)) and not POSITIONS.global_drag_active then
+        if imgui.Button(u8"Ã“Ã¤Ã Ã«Ã¨Ã²Ã¼##dl" .. pName, imgui.ImVec2(100, 35)) and not POSITIONS.global_drag_active then
             lua_thread.create(function()
                 wait(0)
                 storage.profiles[pName] = nil
@@ -1318,7 +1356,7 @@ local function renderTab5()
     
     if not has_profiles then
         imgui.SetCursorPosX(15)
-        imgui.TextDisabled(u8"Ó âàñ ïîêà íåò ñîõðàíåííûõ êîíôèãîâ.")
+        imgui.TextDisabled(u8"Ã“ Ã¢Ã Ã± Ã¯Ã®ÃªÃ  Ã­Ã¥Ã² Ã±Ã®ÃµÃ°Ã Ã­Ã¥Ã­Ã­Ã»Ãµ ÃªÃ®Ã­Ã´Ã¨Ã£Ã®Ã¢.")
     end
     
     if imgui.IsWindowHovered(33) and imgui.IsMouseDragging(0, 0.0) then
@@ -1331,10 +1369,10 @@ end
 local function renderTab6()
     local halfW = (imgui.GetWindowWidth() / 2) - 10
     
-    -- Ëåâàÿ êîëîíêà: Èíâåíòàðü ñåññèè
+    -- Ã‹Ã¥Ã¢Ã Ã¿ ÃªÃ®Ã«Ã®Ã­ÃªÃ : ÃˆÃ­Ã¢Ã¥Ã­Ã²Ã Ã°Ã¼ Ã±Ã¥Ã±Ã±Ã¨Ã¨
     imgui.BeginChild("SessionInv_Area", imgui.ImVec2(halfW, -1), true)
     
-    if imgui.Button(u8"Îáíîâèòü ñïèñîê", imgui.ImVec2(-1, 45)) and not POSITIONS.global_drag_active then
+    if imgui.Button(u8"ÃŽÃ¡Ã­Ã®Ã¢Ã¨Ã²Ã¼ Ã±Ã¯Ã¨Ã±Ã®Ãª", imgui.ImVec2(-1, 45)) and not POSITIONS.global_drag_active then
         lua_thread.create(function()
             wait(0)
             startInventoryScan()
@@ -1344,7 +1382,7 @@ local function renderTab6()
     imgui.Separator()
     
     imgui.PushItemWidth(-1)
-    imgui.InputTextWithHint("##sellsrch", u8"Ïîèñê...", BUFFERS.sellSearch, 256)
+    imgui.InputTextWithHint("##sellsrch", u8"ÃÃ®Ã¨Ã±Ãª...", BUFFERS.sellSearch, 256)
     imgui.PopItemWidth()
     
     imgui.BeginChild("SessionInvScroll", imgui.ImVec2(-1, -1))
@@ -1353,10 +1391,10 @@ local function renderTab6()
         local search_query = ru_lower(u8:decode(ffi.string(BUFFERS.sellSearch)))
         
         for idx, item in ipairs(session_inv) do
-            local item_name = tostring(item.name or "Íåèçâåñòíî")
+            local item_name = tostring(item.name or "ÃÃ¥Ã¨Ã§Ã¢Ã¥Ã±Ã²Ã­Ã®")
             local item_name_lower = ru_lower(item_name)
             
-            -- Ôèëüòðóåì ïî ïîèñêó
+            -- Ã”Ã¨Ã«Ã¼Ã²Ã°Ã³Ã¥Ã¬ Ã¯Ã® Ã¯Ã®Ã¨Ã±ÃªÃ³
             if search_query == "" or item_name_lower:find(search_query, 1, true) then
                 local displayName = string.format("[%d] %s (x%d)", item.slot, item_name, item.count or 1)
                 
@@ -1370,7 +1408,7 @@ local function renderTab6()
                             UI.sellEditIndex = -1
                             UI.open_sell_modal = true
                             
-                            -- Ñîõðàíÿåì äàííûå äëÿ äîáàâëåíèÿ
+                            -- Ã‘Ã®ÃµÃ°Ã Ã­Ã¿Ã¥Ã¬ Ã¤Ã Ã­Ã­Ã»Ã¥ Ã¤Ã«Ã¿ Ã¤Ã®Ã¡Ã Ã¢Ã«Ã¥Ã­Ã¨Ã¿
                             UI.temp_sell_slot = item.slot
                             UI.temp_sell_name = item_name
                             UI.temp_sell_type = item.item_type or 1
@@ -1380,7 +1418,7 @@ local function renderTab6()
             end
         end
     else
-        imgui.TextDisabled(u8"Íàæìèòå 'Îáíîâèòü ñïèñîê' äëÿ ñêàíèðîâàíèÿ")
+        imgui.TextDisabled(u8"ÃÃ Ã¦Ã¬Ã¨Ã²Ã¥ 'ÃŽÃ¡Ã­Ã®Ã¢Ã¨Ã²Ã¼ Ã±Ã¯Ã¨Ã±Ã®Ãª' Ã¤Ã«Ã¿ Ã±ÃªÃ Ã­Ã¨Ã°Ã®Ã¢Ã Ã­Ã¨Ã¿")
     end
     
     if imgui.IsWindowHovered(33) and imgui.IsMouseDragging(0, 0.0) then
@@ -1391,9 +1429,9 @@ local function renderTab6()
     
     imgui.SameLine()
     
-    -- Ïðàâàÿ êîëîíêà: Î÷åðåäü ïðîäàæè
+    -- ÃÃ°Ã Ã¢Ã Ã¿ ÃªÃ®Ã«Ã®Ã­ÃªÃ : ÃŽÃ·Ã¥Ã°Ã¥Ã¤Ã¼ Ã¯Ã°Ã®Ã¤Ã Ã¦Ã¨
     imgui.BeginChild("SellQueue_Area", imgui.ImVec2(halfW, -1), true)
-    if imgui.Button(STATE.isSelling and u8"Îñòàíîâèòü" or u8"Çàïóñòèòü ïðîäàæó", imgui.ImVec2(-1, 55)) and not POSITIONS.global_drag_active then
+    if imgui.Button(STATE.isSelling and u8"ÃŽÃ±Ã²Ã Ã­Ã®Ã¢Ã¨Ã²Ã¼" or u8"Ã‡Ã Ã¯Ã³Ã±Ã²Ã¨Ã²Ã¼ Ã¯Ã°Ã®Ã¤Ã Ã¦Ã³", imgui.ImVec2(-1, 55)) and not POSITIONS.global_drag_active then
         lua_thread.create(function()
             wait(0)
             if STATE.isSelling then
@@ -1420,9 +1458,9 @@ local function renderTab6()
         
         imgui.SameLine(40)
         imgui.BeginGroup()
-        imgui.Text(string.format("[Ñëîò %d] %s", item.slot, item.item_name))
+        imgui.Text(string.format("[Ã‘Ã«Ã®Ã² %d] %s", item.slot, item.item_name))
         
-        local label_amt = item.is_acc[0] and u8"Öâåò: " or u8"Êîë: "
+        local label_amt = item.is_acc[0] and u8"Ã–Ã¢Ã¥Ã²: " or u8"ÃŠÃ®Ã«: "
         imgui.TextDisabled(item.str_price .. u8" $ | " .. label_amt .. item.str_amount)
         imgui.EndGroup()
         
@@ -1551,7 +1589,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
         
         imgui.Begin("##CustomLavka", UI.show_custom_lavka, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoResize + imgui.WindowFlags.NoMove)
         
-        local titleText = u8"ÓÏÐÀÂËÅÍÈÅ ËÀÂÊÎÉ"
+        local titleText = u8"Ã“ÃÃÃ€Ã‚Ã‹Ã…ÃÃˆÃ… Ã‹Ã€Ã‚ÃŠÃŽÃ‰"
         local titleW = imgui.CalcTextSize(titleText).x
         imgui.SetCursorPos(imgui.ImVec2((lavkaW - titleW) / 2, 15))
         imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), titleText)
@@ -1573,11 +1611,11 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
         local btnH = 35
         
         imgui.BeginChild("LeftCol", imgui.ImVec2(colW, -15), true)
-        imgui.SetCursorPosX((colW - imgui.CalcTextSize(u8"Ñêðèïò LMMR").x) / 2)
-        imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"Ñêðèïò LMMR")
+        imgui.SetCursorPosX((colW - imgui.CalcTextSize(u8"Ã‘ÃªÃ°Ã¨Ã¯Ã² LMMR").x) / 2)
+        imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"Ã‘ÃªÃ°Ã¨Ã¯Ã² LMMR")
         imgui.Separator()
         
-        if imgui.Button(u8"Îòêðûòü ìåíþ LMMR", imgui.ImVec2(-1, btnH)) then
+        if imgui.Button(u8"ÃŽÃ²ÃªÃ°Ã»Ã²Ã¼ Ã¬Ã¥Ã­Ã¾ LMMR", imgui.ImVec2(-1, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 UI.CentralGlMenu[0] = true
@@ -1585,16 +1623,16 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             end)
         end
         
-        if imgui.Button(u8"Âûáðàòü êîíôèã", imgui.ImVec2(-1, btnH)) then
+        if imgui.Button(u8"Ã‚Ã»Ã¡Ã°Ã Ã²Ã¼ ÃªÃ®Ã­Ã´Ã¨Ã£", imgui.ImVec2(-1, btnH)) then
             lua_thread.create(function()
                 wait(0)
-                imgui.OpenPopup(u8"Âûáîð êîíôèãà")
+                imgui.OpenPopup(u8"Ã‚Ã»Ã¡Ã®Ã° ÃªÃ®Ã­Ã´Ã¨Ã£Ã ")
             end)
         end
         
         imgui.SetNextWindowPos(imgui.ImVec2(resX / 2, resY / 2), imgui.Cond.Appearing, imgui.ImVec2(0.5, 0.5))
-        if imgui.BeginPopupModal(u8"Âûáîð êîíôèãà", nil, imgui.WindowFlags.AlwaysAutoResize + imgui.WindowFlags.NoMove) then
-            imgui.Text(u8"Âûáåðèòå êîíôèã äëÿ çàãðóçêè:")
+        if imgui.BeginPopupModal(u8"Ã‚Ã»Ã¡Ã®Ã° ÃªÃ®Ã­Ã´Ã¨Ã£Ã ", nil, imgui.WindowFlags.AlwaysAutoResize + imgui.WindowFlags.NoMove) then
+            imgui.Text(u8"Ã‚Ã»Ã¡Ã¥Ã°Ã¨Ã²Ã¥ ÃªÃ®Ã­Ã´Ã¨Ã£ Ã¤Ã«Ã¿ Ã§Ã Ã£Ã°Ã³Ã§ÃªÃ¨:")
             imgui.Separator()
             imgui.Spacing()
             
@@ -1627,12 +1665,12 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                 imgui.Spacing()
             end
             if not has_p then 
-                imgui.TextDisabled(u8"Íåò ñîõðàíåííûõ êîíôèãîâ") 
+                imgui.TextDisabled(u8"ÃÃ¥Ã² Ã±Ã®ÃµÃ°Ã Ã­Ã¥Ã­Ã­Ã»Ãµ ÃªÃ®Ã­Ã´Ã¨Ã£Ã®Ã¢") 
             end
             
             imgui.Spacing()
             imgui.Separator()
-            if imgui.Button(u8"Çàêðûòü", imgui.ImVec2(250, 35)) then
+            if imgui.Button(u8"Ã‡Ã ÃªÃ°Ã»Ã²Ã¼", imgui.ImVec2(250, 35)) then
                 imgui.CloseCurrentPopup()
             end
             imgui.EndPopup()
@@ -1640,12 +1678,12 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
         
         imgui.Spacing()
         local c_preset = active_preset_name ~= "" and active_preset_name or "Main.json"
-        imgui.TextDisabled(u8"Ïðåñåò: " .. c_preset)
+        imgui.TextDisabled(u8"ÃÃ°Ã¥Ã±Ã¥Ã²: " .. c_preset)
         imgui.Spacing()
         
         imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.2, 0.7, 0.2, 0.8))
         imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.2, 0.8, 0.2, 1.0))
-        if imgui.Button(u8"Âûñòàâèòü ñêóïêó", imgui.ImVec2(-1, btnH + 10)) then
+        if imgui.Button(u8"Ã‚Ã»Ã±Ã²Ã Ã¢Ã¨Ã²Ã¼ Ã±ÃªÃ³Ã¯ÃªÃ³", imgui.ImVec2(-1, btnH + 10)) then
             lua_thread.create(function()
                 wait(0)
                 runBuyingProcess()
@@ -1656,7 +1694,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
         
         imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.9, 0.6, 0.2, 0.8))
         imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(1.0, 0.7, 0.3, 1.0))
-        if imgui.Button(u8"Àâòî-ïðîäàæà", imgui.ImVec2(-1, btnH + 10)) then
+        if imgui.Button(u8"Ã€Ã¢Ã²Ã®-Ã¯Ã°Ã®Ã¤Ã Ã¦Ã ", imgui.ImVec2(-1, btnH + 10)) then
             lua_thread.create(function()
                 wait(0)
                 runSellingProcess()
@@ -1670,13 +1708,13 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
         imgui.SameLine()
         
         imgui.BeginChild("RightCol", imgui.ImVec2(colW, -15), true)
-        imgui.SetCursorPosX((colW - imgui.CalcTextSize(u8"Ñåðâåðíàÿ ëàâêà").x) / 2)
-        imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"Ñåðâåðíàÿ ëàâêà")
+        imgui.SetCursorPosX((colW - imgui.CalcTextSize(u8"Ã‘Ã¥Ã°Ã¢Ã¥Ã°Ã­Ã Ã¿ Ã«Ã Ã¢ÃªÃ ").x) / 2)
+        imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"Ã‘Ã¥Ã°Ã¢Ã¥Ã°Ã­Ã Ã¿ Ã«Ã Ã¢ÃªÃ ")
         imgui.Separator()
         
         local tBtnW = (colW - 15) / 2
         
-        if imgui.Button(u8"Ïðîäàæà", imgui.ImVec2(tBtnW, btnH)) then
+        if imgui.Button(u8"ÃÃ°Ã®Ã¤Ã Ã¦Ã ", imgui.ImVec2(tBtnW, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 sampSendDialogResponse(9, 1, 0, "")
@@ -1684,7 +1722,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             end)
         end
         imgui.SameLine()
-        if imgui.Button(u8"Ñêóïêà", imgui.ImVec2(tBtnW, btnH)) then
+        if imgui.Button(u8"Ã‘ÃªÃ³Ã¯ÃªÃ ", imgui.ImVec2(tBtnW, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 sampSendDialogResponse(9, 1, 1, "")
@@ -1692,7 +1730,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             end)
         end
         
-        if imgui.Button(u8"Íàçâàíèå", imgui.ImVec2(tBtnW, btnH)) then
+        if imgui.Button(u8"ÃÃ Ã§Ã¢Ã Ã­Ã¨Ã¥", imgui.ImVec2(tBtnW, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 sampSendDialogResponse(9, 1, 5, "")
@@ -1700,7 +1738,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             end)
         end
         imgui.SameLine()
-        if imgui.Button(u8"Òîâàðû", imgui.ImVec2(tBtnW, btnH)) then
+        if imgui.Button(u8"Ã’Ã®Ã¢Ã Ã°Ã»", imgui.ImVec2(tBtnW, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 sampSendDialogResponse(9, 1, 3, "")
@@ -1708,7 +1746,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             end)
         end
         
-        if imgui.Button(u8"Èñòîðèÿ ñäåëîê", imgui.ImVec2(-1, btnH)) then
+        if imgui.Button(u8"ÃˆÃ±Ã²Ã®Ã°Ã¨Ã¿ Ã±Ã¤Ã¥Ã«Ã®Ãª", imgui.ImVec2(-1, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 sampSendDialogResponse(9, 1, 4, "")
@@ -1717,11 +1755,11 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
         end
         
         imgui.Spacing()
-        imgui.TextDisabled(u8"Ïðåêðàòèòü:")
+        imgui.TextDisabled(u8"ÃÃ°Ã¥ÃªÃ°Ã Ã²Ã¨Ã²Ã¼:")
         
         imgui.PushStyleColor(imgui.Col.Button, imgui.ImVec4(0.8, 0.2, 0.2, 0.7))
         imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.9, 0.3, 0.3, 1.0))
-        if imgui.Button(u8"Ñêóï", imgui.ImVec2(tBtnW, btnH)) then
+        if imgui.Button(u8"Ã‘ÃªÃ³Ã¯", imgui.ImVec2(tBtnW, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 sampSendDialogResponse(9, 1, 2, "")
@@ -1729,7 +1767,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             end)
         end
         imgui.SameLine()
-        if imgui.Button(u8"Àðåíäó", imgui.ImVec2(tBtnW, btnH)) then
+        if imgui.Button(u8"Ã€Ã°Ã¥Ã­Ã¤Ã³", imgui.ImVec2(tBtnW, btnH)) then
             lua_thread.create(function()
                 wait(0)
                 sampSendDialogResponse(9, 1, 6, "")
@@ -1764,11 +1802,11 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             imgui.Begin("##AuthWindow", UI.CentralGlMenu, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoResize)
             
             imgui.SetCursorPos(imgui.ImVec2(20, 20))
-            imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"ÀÂÒÎÐÈÇÀÖÈß LMMR")
+            imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), u8"Ã€Ã‚Ã’ÃŽÃÃˆÃ‡Ã€Ã–ÃˆÃŸ LMMR")
             imgui.Separator()
             
             imgui.SetCursorPos(imgui.ImVec2(20, 60))
-            imgui.Text(u8"Ââåäèòå êëþ÷ äîñòóïà:")
+            imgui.Text(u8"Ã‚Ã¢Ã¥Ã¤Ã¨Ã²Ã¥ ÃªÃ«Ã¾Ã· Ã¤Ã®Ã±Ã²Ã³Ã¯Ã :")
             
             imgui.SetCursorPos(imgui.ImVec2(20, 85))
             imgui.PushItemWidth(310)
@@ -1777,11 +1815,11 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             
             if AUTH.authError then
                 imgui.SetCursorPos(imgui.ImVec2(20, 115))
-                imgui.TextColored(imgui.ImVec4(1.0, 0.2, 0.2, 1.0), u8"Íåâåðíûé êëþ÷!")
+                imgui.TextColored(imgui.ImVec4(1.0, 0.2, 0.2, 1.0), u8"ÃÃ¥Ã¢Ã¥Ã°Ã­Ã»Ã© ÃªÃ«Ã¾Ã·!")
             end
             
             imgui.SetCursorPos(imgui.ImVec2(20, 135))
-            if imgui.Button(u8"ÂÎÉÒÈ", imgui.ImVec2(310, 45)) then
+            if imgui.Button(u8"Ã‚ÃŽÃ‰Ã’Ãˆ", imgui.ImVec2(310, 45)) then
                 if not POSITIONS.global_drag_active then
                     lua_thread.create(function()
                         wait(0)
@@ -1832,7 +1870,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), "LMMR 1.8.2")
             
             imgui.SetCursorPos(imgui.ImVec2(imgui.GetWindowWidth() - 180, 15))
-            if imgui.Button(u8"Íàñòðîéêè", imgui.ImVec2(120, 45)) and not POSITIONS.global_drag_active then
+            if imgui.Button(u8"ÃÃ Ã±Ã²Ã°Ã®Ã©ÃªÃ¨", imgui.ImVec2(120, 45)) and not POSITIONS.global_drag_active then
                 lua_thread.create(function()
                     wait(0)
                     UI.currentTab = 4
@@ -1851,11 +1889,11 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             imgui.BeginChild("SideBar", imgui.ImVec2(210, -15), true)
             imgui.SetCursorPosY(20)
             local nav_items = {
-                {u8"Ïðåäìåòû", 1},
-                {u8"Ïðîäàæà", 6},
-                {u8"Ëîãè", 2},
-                {u8"Èíôî", 3},
-                {u8"Êîíôèãè", 5}
+            imgui.TextDisabled("LMMR by major")
+                {u8"ÃÃ°Ã®Ã¤Ã Ã¦Ã ", 6},
+                {u8"Ã‹Ã®Ã£Ã¨", 2},
+                {u8"ÃˆÃ­Ã´Ã®", 3},
+                {u8"ÃŠÃ®Ã­Ã´Ã¨Ã£Ã¨", 5}
             }
             for _, nav in ipairs(nav_items) do
                 imgui.SetCursorPosX(15)
@@ -1892,7 +1930,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             
             imgui.EndChild()
 
-            -- Ìîäàëüíîå îêíî äîáàâëåíèÿ ïðåäìåòà äëÿ ñêóïêè
+            -- ÃŒÃ®Ã¤Ã Ã«Ã¼Ã­Ã®Ã¥ Ã®ÃªÃ­Ã® Ã¤Ã®Ã¡Ã Ã¢Ã«Ã¥Ã­Ã¨Ã¿ Ã¯Ã°Ã¥Ã¤Ã¬Ã¥Ã²Ã  Ã¤Ã«Ã¿ Ã±ÃªÃ³Ã¯ÃªÃ¨
             if UI.open_add_modal then
                 imgui.OpenPopup("CEF_Modal")
                 UI.open_add_modal = false
@@ -1902,32 +1940,32 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             imgui.SetNextWindowPos(imgui.ImVec2(resX / 2, resY / 2), imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
             if imgui.BeginPopupModal("CEF_Modal", nil, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoResize) then
                 imgui.SetCursorPos(imgui.ImVec2(30, 30))
-                imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), UI.editIndex == -1 and u8"ÄÎÁÀÂËÅÍÈÅ ÏÐÅÄÌÅÒÀ" or u8"ÈÇÌÅÍÅÍÈÅ ÏÐÅÄÌÅÒÀ")
+                imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), UI.editIndex == -1 and u8"Ã„ÃŽÃÃ€Ã‚Ã‹Ã…ÃÃˆÃ… ÃÃÃ…Ã„ÃŒÃ…Ã’Ã€" or u8"ÃˆÃ‡ÃŒÃ…ÃÃ…ÃÃˆÃ… ÃÃÃ…Ã„ÃŒÃ…Ã’Ã€")
                 imgui.Separator()
                 
                 imgui.SetCursorPos(imgui.ImVec2(30, 80))
                 imgui.BeginGroup()
                 
                 imgui.PushItemWidth(590) 
-                imgui.Text(u8"Íàçâàíèå (äëÿ ñåáÿ):")
+                imgui.Text(u8"ÃÃ Ã§Ã¢Ã Ã­Ã¨Ã¥ (Ã¤Ã«Ã¿ Ã±Ã¥Ã¡Ã¿):")
                 imgui.InputText("##name_in", BUFFERS.addName, 256)
                 imgui.Spacing()
                 
-                imgui.Text(u8"ID Ïðåäìåòà:")
+                imgui.Text(u8"ID ÃÃ°Ã¥Ã¤Ã¬Ã¥Ã²Ã :")
                 imgui.InputText("##id_in", BUFFERS.addId, 64)
                 imgui.Spacing()
                 
-                imgui.Text(u8"Öåíà çà 1 øò:")
+                imgui.Text(u8"Ã–Ã¥Ã­Ã  Ã§Ã  1 Ã¸Ã²:")
                 imgui.InputText("##prc_in", BUFFERS.addPrice, 64)
                 imgui.Spacing()
                 
-                imgui.Checkbox(u8"Ýòî àêñåññóàð?", BUFFERS.addIsAccessory)
+                imgui.Checkbox(u8"ÃÃ²Ã® Ã ÃªÃ±Ã¥Ã±Ã±Ã³Ã Ã°?", BUFFERS.addIsAccessory)
                 imgui.Spacing()
 
                 if BUFFERS.addIsAccessory[0] then
-                    imgui.Text(u8"ID öâåòà (0-12):")
+                    imgui.Text(u8"ID Ã¶Ã¢Ã¥Ã²Ã  (0-12):")
                 else
-                    imgui.Text(u8"Êîëè÷åñòâî:")
+                    imgui.Text(u8"ÃŠÃ®Ã«Ã¨Ã·Ã¥Ã±Ã²Ã¢Ã®:")
                 end
                 imgui.InputText("##amt_in", BUFFERS.addAmount, 64)
                 
@@ -1935,7 +1973,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                 imgui.EndGroup()
                 
                 imgui.SetCursorPos(imgui.ImVec2(30, 510)) 
-                if imgui.Button(u8"Ñîõðàíèòü", imgui.ImVec2(285, 60)) and not POSITIONS.global_drag_active then
+                if imgui.Button(u8"Ã‘Ã®ÃµÃ°Ã Ã­Ã¨Ã²Ã¼", imgui.ImVec2(285, 60)) and not POSITIONS.global_drag_active then
                     lua_thread.create(function()
                         wait(0)
                         local s_name = ffi.string(BUFFERS.addName)
@@ -1974,13 +2012,13 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                 end
                 imgui.SameLine()
                 imgui.SetCursorPosX(335)
-                if imgui.Button(u8"Îòìåíà", imgui.ImVec2(285, 60)) and not POSITIONS.global_drag_active then
+                if imgui.Button(u8"ÃŽÃ²Ã¬Ã¥Ã­Ã ", imgui.ImVec2(285, 60)) and not POSITIONS.global_drag_active then
                     imgui.CloseCurrentPopup()
                 end
                 imgui.EndPopup()
             end
             
-            -- Ìîäàëüíîå îêíî äîáàâëåíèÿ ïðåäìåòà äëÿ ïðîäàæè
+            -- ÃŒÃ®Ã¤Ã Ã«Ã¼Ã­Ã®Ã¥ Ã®ÃªÃ­Ã® Ã¤Ã®Ã¡Ã Ã¢Ã«Ã¥Ã­Ã¨Ã¿ Ã¯Ã°Ã¥Ã¤Ã¬Ã¥Ã²Ã  Ã¤Ã«Ã¿ Ã¯Ã°Ã®Ã¤Ã Ã¦Ã¨
             if UI.open_sell_modal then
                 imgui.OpenPopup("Sell_Modal")
                 UI.open_sell_modal = false
@@ -1990,7 +2028,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
             imgui.SetNextWindowPos(imgui.ImVec2(resX / 2, resY / 2), imgui.Cond.Always, imgui.ImVec2(0.5, 0.5))
             if imgui.BeginPopupModal("Sell_Modal", nil, imgui.WindowFlags.NoTitleBar + imgui.WindowFlags.NoResize) then
                 imgui.SetCursorPos(imgui.ImVec2(30, 30))
-                imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), UI.sellEditIndex == -1 and u8"ÄÎÁÀÂÈÒÜ Â ÏÐÎÄÀÆÓ" or u8"ÈÇÌÅÍÈÒÜ ÍÀÑÒÐÎÉÊÈ")
+                imgui.TextColored(imgui.ImVec4(cAcc[0], cAcc[1], cAcc[2], 1.0), UI.sellEditIndex == -1 and u8"Ã„ÃŽÃÃ€Ã‚ÃˆÃ’Ãœ Ã‚ ÃÃÃŽÃ„Ã€Ã†Ã“" or u8"ÃˆÃ‡ÃŒÃ…ÃÃˆÃ’Ãœ ÃÃ€Ã‘Ã’ÃÃŽÃ‰ÃŠÃˆ")
                 imgui.Separator()
                 
                 imgui.SetCursorPos(imgui.ImVec2(30, 80))
@@ -1998,17 +2036,17 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                 
                 imgui.PushItemWidth(440)
                 
-                imgui.Text(u8"Öåíà çà 1 øò:")
+                imgui.Text(u8"Ã–Ã¥Ã­Ã  Ã§Ã  1 Ã¸Ã²:")
                 imgui.InputText("##sell_prc_in", BUFFERS.sellPrice, 64)
                 imgui.Spacing()
                 
-                imgui.Checkbox(u8"Ýòî àêñåññóàð?", BUFFERS.sellIsAccessory)
+                imgui.Checkbox(u8"ÃÃ²Ã® Ã ÃªÃ±Ã¥Ã±Ã±Ã³Ã Ã°?", BUFFERS.sellIsAccessory)
                 imgui.Spacing()
 
                 if BUFFERS.sellIsAccessory[0] then
-                    imgui.Text(u8"ID öâåòà (0-12):")
+                    imgui.Text(u8"ID Ã¶Ã¢Ã¥Ã²Ã  (0-12):")
                 else
-                    imgui.Text(u8"Êîëè÷åñòâî:")
+                    imgui.Text(u8"ÃŠÃ®Ã«Ã¨Ã·Ã¥Ã±Ã²Ã¢Ã®:")
                 end
                 imgui.InputText("##sell_amt_in", BUFFERS.sellAmount, 64)
                 
@@ -2016,7 +2054,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                 imgui.EndGroup()
                 
                 imgui.SetCursorPos(imgui.ImVec2(30, 310))
-                if imgui.Button(u8"Ñîõðàíèòü", imgui.ImVec2(210, 60)) and not POSITIONS.global_drag_active then
+                if imgui.Button(u8"Ã‘Ã®ÃµÃ°Ã Ã­Ã¨Ã²Ã¼", imgui.ImVec2(210, 60)) and not POSITIONS.global_drag_active then
                     lua_thread.create(function()
                         wait(0)
                         local s_price = ffi.string(BUFFERS.sellPrice)
@@ -2025,7 +2063,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                         if UI.sellEditIndex == -1 then
                             table.insert(sell_vars, {
                                 slot = UI.temp_sell_slot or 0,
-                                item_name = UI.temp_sell_name or "Íåèçâåñòíî",
+                                item_name = UI.temp_sell_name or "ÃÃ¥Ã¨Ã§Ã¢Ã¥Ã±Ã²Ã­Ã®",
                                 item_type = UI.temp_sell_type or 1,
                                 price = imgui.new.char[64](string.sub(s_price, 1, 63)),
                                 amount = imgui.new.char[64](string.sub(s_amount, 1, 63)),
@@ -2048,12 +2086,8 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                 end
                 imgui.SameLine()
                 imgui.SetCursorPosX(260)
-                if imgui.Button(u8"Îòìåíà", imgui.ImVec2(210, 60)) and not POSITIONS.global_drag_active then
-                    imgui.CloseCurrentPopup()
-                end
-                imgui.EndPopup()
-            end
-            
+
+    UI.CentralGlMenu[0] = false
             imgui.End()
         end
         imgui.PopStyleColor(7)
@@ -2061,7 +2095,7 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
 end)
 
 -- ============================================================================
--- ÎÑÍÎÂÍÀß ÔÓÍÊÖÈß
+-- ÃŽÃ‘ÃÃŽÃ‚ÃÃ€ÃŸ Ã”Ã“ÃÃŠÃ–ÃˆÃŸ
 -- ============================================================================
 
 function main()
@@ -2075,7 +2109,7 @@ function main()
         UI.CentralGlMenu[0] = not UI.CentralGlMenu[0]
     end)
     
-    sampAddChatMessage("{00BFFF}[LMMR 1.8.2]{FFFFFF} Ñêðèïò çàãðóæåí. /cent", -1)
+    sampAddChatMessage("{00BFFF}[LMMR 1.8.2]{FFFFFF} Ã‘ÃªÃ°Ã¨Ã¯Ã² Ã§Ã Ã£Ã°Ã³Ã¦Ã¥Ã­. /cent", -1)
     
     while true do
         wait(0)
