@@ -13,6 +13,12 @@ local json = pcall(require, "json") and require("json") or {
 }
 
 if not imgui_status then
+    return
+end
+
+if encoding_status then
+    encoding.default = 'CP1251'
+end
 
 local u8
 if encoding_status and encoding and encoding.UTF8 then
@@ -28,14 +34,6 @@ else
         end
     })
 end
-    waitingForInventory = false,
-    browserId = nil
-end
-
-if encoding_status then
-    encoding.default = 'CP1251'
-end
-local u8 = encoding_status and encoding.UTF8 or function(str) return str end
 
 local configDir = getWorkingDirectory() .. '/config/'
 local filePath = configDir .. 'main.json'
@@ -405,28 +403,57 @@ function runAutoScan()
 end
 
 -- ============================================================================
-            is_acc = v.is_acc[0]
-        })
-    end
+-- ÑÎÕÐÀÍÅÍÈÅ / ÇÀÃÐÓÇÊÀ MAIN JSON
+-- ============================================================================
 
+function save_main_json()
+    storage.settings = storage.settings or {}
+    storage.items = {}
+    storage.sell_items = {}
+    storage.profiles = storage.profiles or {}
+
+    storage.settings.win_W = win_W[0]
+    storage.settings.win_H = win_H[0]
+    storage.settings.accent = {cAcc[0], cAcc[1], cAcc[2]}
+    storage.settings.background = {cBg[0], cBg[1], cBg[2]}
+    storage.settings.saved_key = AUTH.isAuthorized and ffi.string(BUFFERS.authKey) or ""
+    storage.settings.show_btn = show_screen_btn[0]
+    storage.settings.btn_color = {cBtn[0], cBtn[1], cBtn[2]}
+    storage.settings.btn_size = btn_size[0]
     storage.settings.fps_boost = fps_boost[0]
     storage.settings.auto_clean = auto_clean[0]
-
-            storage.settings = storage.settings or {}
-            storage.items = storage.items or {}
-            storage.sell_items = storage.sell_items or {}
-            storage.profiles = storage.profiles or {}
-            fps_boost[0] = storage.settings.fps_boost or false
-            auto_clean[0] = storage.settings.auto_clean or false
     storage.settings.global_delay = global_delay[0]
     storage.settings.menu_opacity = menu_opacity[0]
-    
+
     storage.settings.win_posX = POSITIONS.win_posX[0]
     storage.settings.win_posY = POSITIONS.win_posY[0]
     storage.settings.pos_converted = true
     storage.settings.btn_posX = POSITIONS.btn_posX[0]
     storage.settings.btn_posY = POSITIONS.btn_posY[0]
-    
+
+    for _, v in ipairs(vars) do
+        table.insert(storage.items, {
+            name = u8:decode(v.str_name),
+            id = u8:decode(v.str_id),
+            price = u8:decode(v.str_price),
+            amount = u8:decode(v.str_amount),
+            active = v.active[0],
+            is_acc = v.is_acc[0]
+        })
+    end
+
+    for _, v in ipairs(sell_vars) do
+        table.insert(storage.sell_items, {
+            slot = v.slot,
+            item_name = v.item_name,
+            item_type = v.item_type,
+            price = u8:decode(v.str_price),
+            amount = u8:decode(v.str_amount),
+            active = v.active[0],
+            is_acc = v.is_acc[0]
+        })
+    end
+
     local file = io.open(filePath, "w")
     if file then
         file:write(json.encode(storage))
@@ -910,6 +937,7 @@ end
 
 imgui.OnInitialize(function()
     load_main_json()
+    UI.CentralGlMenu[0] = false
     load_item_db()
     load_logs()
     local style = imgui.GetStyle()
@@ -2104,7 +2132,6 @@ imgui.OnFrame(function() return UI.CentralGlMenu[0] or show_screen_btn[0] or UI.
                 imgui.SameLine()
                 imgui.SetCursorPosX(260)
 
-    UI.CentralGlMenu[0] = false
             imgui.End()
         end
         imgui.PopStyleColor(7)
@@ -2126,7 +2153,6 @@ function main()
         UI.CentralGlMenu[0] = not UI.CentralGlMenu[0]
     end)
     
-    sampAddChatMessage("{00BFFF}[LMMR 1.8.2]{FFFFFF} Ñêðèïò çàãðóæåí. /cent", -1)
     
     while true do
         wait(0)
