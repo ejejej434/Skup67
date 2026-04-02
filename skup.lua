@@ -1,4 +1,4 @@
-script_name("LMMR")
+зscript_name("LMMR")
 script_author("major")
 script_version("1.8.2")
 
